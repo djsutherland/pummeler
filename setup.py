@@ -1,11 +1,5 @@
-try:
-    from setuptools import setup
-    from setuptools.extension import Extension
-except ImportError:
-    from distutils.core import setup
-    from distutils.extension import Extension
+from setuptools import setup
 
-import numpy as np
 import os
 import versioneer
 
@@ -18,13 +12,22 @@ setup(
     packages=[
         'pummeler',
     ],
+    package_data={
+        'pummeler': ['data/*.h5'],
+    },
+    entry_points={
+        'console_scripts': [
+            'pummel = pummeler.cli:main'
+        ],
+    },
     description="Utilities for processing and analyzing ACS PUMS files.",
     install_requires=[
         'numpy',
         'pandas',
         'progressbar2',
+        'six',
     ],
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
+    license='MIT',
 )
-
