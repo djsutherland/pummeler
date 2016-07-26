@@ -1,3 +1,5 @@
+# pummeler
+
 This is a set of utilities for analyzing the American Community Survey's Public Use Microdata Survey files (ACS PUMS), mostly following
 
     Flaxman, Wang, and Smola. Who Supported Obama in 2012? Ecological Inference through Distribution Regression. KDD 2015.
@@ -9,7 +11,7 @@ The package currently only supports the 2006-10 5-year estimates, but more will 
 
 ### Installation
 
-`pip install pummeler` should work; it will then be available via `import pummler` and install a `pummel` script.
+`pip install pummeler` should work soon, once it's done enough to have an actual release; it will then be available via `import pummler` and install a `pummel` script.
 
 If you prefer, you can also check out the source directory, which should work as long as you put the `pummel` directory on your `sys.path` (or start Python from the root of the checkout). In that case you should use the `pummel` script at the top level of the checkout.
 
