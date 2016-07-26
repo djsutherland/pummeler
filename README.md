@@ -2,7 +2,8 @@
 
 This is a set of utilities for analyzing the American Community Survey's Public Use Microdata Survey files (ACS PUMS), mostly following
 
-    Flaxman, Wang, and Smola. Who Supported Obama in 2012? Ecological Inference through Distribution Regression. KDD 2015.
+> Flaxman, Wang, and Smola. Who Supported Obama in 2012? Ecological Inference through Distribution Regression. KDD 2015.
+> ([official](http://dx.doi.org/10.1145/2783258.2783300), [from author](http://sethrf.com/files/ecological.pdf))
 
 The package currently only supports the 2006-10 5-year estimates, but more will be added.
 
@@ -55,7 +56,7 @@ Run `pummel sort SORT_DIR PUMS_SOURCE/ss*.csv`. (A few extra options are shown i
 
 - Makes a file `SORT_DIR/_stats.h5` containing means and standard deviations of the real-valued features, and counts of the different values for the categorical features.
 
-This will take a while (about 40 minutes on my [slow] laptop). Luckily you should only need to do it once per ACS file.
+This will take a while (20 minutes on my fast laptop, 40 minutes on my slow one). Luckily you should only need to do it once per ACS file.
 
 
 ### Featurization
