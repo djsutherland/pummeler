@@ -21,8 +21,6 @@ If you prefer, you can also check out the source directory, which should work as
 
 First, download the data from the Census site. You probably want the "csv_pus.zip" file, [here](http://www2.census.gov/programs-surveys/acs/data/pums/2010/5-Year/csv_pus.zip) for the 2006-10 data (2.1 GB).
 
-Extract it. I'll assume the CSV files ended up in the path `PUMS_SOURCE`.
-
 
 ### Getting the election data
 
@@ -50,20 +48,36 @@ This was done in the Jupyter notebook `notebooks/get electoral regions.ipynb`.
 
 First, we need to sort the features by region and collect statistics about them so we can do the featurization.
 
-Run `pummel sort SORT_DIR PUMS_SOURCE/ss*.csv`. (A few extra options are shown if you pass `--help`.) This will:
+Run `pummel sort -z csv_pus.zip SORT_DIR`. (A few extra options are shown if you pass `--help`.) This will:
 
-- Make a bunch of files in `OUT_DIR` like `AL_00_01.csv`, which contain basically the original features (except with the `ADJINC` adjustment applied to fields that need it to account for inflation) grouped by region.
+- Make a bunch of files in `SORT_DIR` like `feats_AL_00_01.h5`, which contain basically the original features (except with the `ADJINC` adjustment applied to fields that need it to account for inflation) grouped by region. These are stored in HDF5 format with pandas, because it's much faster and takes less disk space than CSVs.
 
-- Makes a file `SORT_DIR/_stats.h5` containing means and standard deviations of the real-valued features, and counts of the different values for the categorical features.
+- Makes a file `SORT_DIR/stats.h5` containing means and standard deviations of the real-valued features, counts of the different values for the categorical features, and a random sample of all the features.
 
-This will take a while (20 minutes on my fast laptop, 40 minutes on my slow one). Luckily you should only need to do it once per ACS file.
+This will take a while (~15 minutes on my fast-ish laptop). Luckily you should only need to do it once per ACS file.
 
 
 ### Featurization
 
-**TODO**
+Run `pummel featurize SORT_DIR`. (Again, you have a couple of options shown by `--help`.) This will get both linear embeddings (i.e. means) and random Fourier feature embeddings for each region, saving the output in `SORT_DIR/embeddings.npz`.
+
+On my laptop (with a quad-core Haswell i7), this takes about 15 minutes. Make sure you're using a numpy linked to a fast BLAS (like MKL or OpenBLAS; the easiest way to do this is to use the [Anaconda](https://www.continuum.io/downloads) Python distribution, which includes MKL by default); otherwise, this step will be much slower.
+
+The original paper used Fastfood transforms instead of the default random Fourier features used here, which with a good implementation will be faster. I'm not currently aware of a high-quality, easily-available Python-friendly implementation.
+
+`SORT_DIR/embeddings.npz`, which you can load with `np.load`, will then have:
+
+ - `emb_lin`: the `n_regions x n_feats` array of feature means.
+ - `emb_rff`: the `n_regions x (2 * n_freq)` array of random Fourier feature embeddings.
+ - `region_names`: the names corresponding to the first axis of the embeddings.
+ - `feature_names`: the names for each used feature.
+ - `freqs`: the `n_feats x n_freq` array of random frequencies for the random Fourier features.
+ - `bandwidths`: the bandwidth used for selecting the `freqs`.
 
 
 ### Analysis
 
-**TODO**
+**TODO**:
+
+ - Get geographic locations for each region
+ - Make a notebook replicating the analysis from the paper, with helpers in the package

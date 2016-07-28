@@ -1,10 +1,11 @@
 import pandas as pd
+import zipfile
 
 
-weirds = ("indp02 indp07 occp02 occp10 OCCP10 OCCP12,"
+weirds = ("indp02 indp07 occp02 occp10 OCCP10 OCCP12 "
           "socp00 socp10 naicsp02 naicsp07".split())
 adj_cols = "INTP OIP PAP PERNP PINCP RETP SEMP SSIP SSP WAGP".split()
-def read_chunks(fname, chunksize=10**5, voters_only=False, adj_inc=True):
+def read_chunks(fname, chunksize=10**5, voters_only=False, adj_inc=None):
     chunks = pd.read_csv(
         fname,
         skipinitialspace=True,
@@ -16,6 +17,16 @@ def read_chunks(fname, chunksize=10**5, voters_only=False, adj_inc=True):
         if voters_only:
             chunk = chunk[(chunk.AGEP >= 18) & (chunk.CIT != 5)]
         
+        if adj_inc is None:
+            if 'ADJINC' in chunk:
+                adj_inc = True
+            elif 'ADJINC_orig' in chunk:
+                adj_inc = False
+            else:
+                raise ValueError("Unclear whether income has been adjusted, "
+                                 "and adj_inc is None; pass either True or "
+                                 "False explicitly")
+
         if adj_inc:
             adj = chunk.ADJINC / 1e6
             for k in adj_cols:

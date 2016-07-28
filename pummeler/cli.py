@@ -1,10 +1,15 @@
+from __future__ import division, print_function
 import argparse
+from glob import glob
 import os
 
+import numpy as np
 import pandas as pd
 import six
 
+from .featurize import get_embeddings
 from .reader import VERSIONS
+from .stats import load_stats, save_stats
 from .sort import sort_by_region
 
 
@@ -20,29 +25,56 @@ def main():
     )
     subparsers = parser.add_subparsers()
 
+    ############################################################################
     sort = subparsers.add_parser(
         'sort', help="Sort the data by region and collect statistics about it.")
     sort.set_defaults(func=do_sort)
-    sort.add_argument('out_dir', help='Directory for the sorted features.')
-    sort.add_argument('files', nargs='+',
-                      help="The original ACS PUMS csv files, from the zip.")
-    g = sort.add_mutually_exclusive_group()
+
+    io = sort.add_argument_group('Input/output options')
+    g = io.add_mutually_exclusive_group(required=True)
+    g.add_argument('--zipfile', '-z', help="The original ACS PUMS zip file.")
+    g.add_argument('--csv-files', '-c', nargs='+',
+                   help="CSV files in ACS PUMS format.")
+
+    io.add_argument('out_dir', help='Directory for the sorted features.')
+
+    io.add_argument('--chunksize', type=int, default=10**5, metavar='LINES',
+                      help="How much of a CSV file to read at a time; default "
+                           "%(default)s.")
+    io.add_argument('--stats-only', action='store_true', default=False,
+                    help="Only compute the stats, don't do the sorting.")
+
+    fmt = sort.add_argument_group('Format options')
+    g = fmt.add_mutually_exclusive_group()
     g.add_argument('--voters-only', action='store_true', default=True,
                    help="Only include citizens who are at least 18 years old "
                         "(default).")
     g.add_argument('--all-people', action='store_false', dest='voters_only',
                    help="Include all records from the files.")
-    sort.add_argument('--version', choices=VERSIONS, default='2006-10',
+    fmt.add_argument('--version', choices=VERSIONS, default='2006-10',
                       help="The format of the ACS PUMS files in use; default "
                            "%(default)s.")
-    sort.add_argument('--chunksize', type=int, default=10**4, metavar='LINES',
-                      help="How much of a CSV file to read at a time; default "
-                           "%(default)s.")
 
+    ############################################################################
     featurize = subparsers.add_parser(
         'featurize', help="Emit features for a given region.")
     featurize.set_defaults(func=do_featurize)
 
+    io = featurize.add_argument_group('Input/output options')
+    io.add_argument('dir', help="The directory where `pummel sort` put stuff.")
+    io.add_argument('outfile', nargs='?',
+                    help='Where to put embeddings; default DIR/embeddings.npz.')
+
+    emb = featurize.add_argument_group('Embedding options')
+    emb.add_argument('--n-freqs', type=int, default=2048,
+                     help='Number of random frequencies to use (half the '
+                          'embedding dimension; default %(default)s).')
+    emb.add_argument('--bandwidth', type=float,
+                     help='Gaussian kernel bandwidth. Default: choose the '
+                          'median distance among the random sample saved in '
+                          'the stats file.')
+
+    ############################################################################
     args = parser.parse_args()
     args.func(args, parser)
 
@@ -50,36 +82,23 @@ def main():
 def do_sort(args, parser):
     if not os.path.isdir(args.out_dir):
         os.makedirs(args.out_dir)
-    means, stds, value_counts = sort_by_region(
-        args.files, os.path.join(args.out_dir, '{}.csv'),
-        voters_only=args.voters_only,
+    stats = sort_by_region(
+        args.zipfile or args.csv_files,
+        os.path.join(args.out_dir, 'feats_{}.h5'),
+        voters_only=args.voters_only, stats_only=args.stats_only,
         adj_inc=True, version=args.version, chunksize=args.chunksize)
-
-    fn = os.path.join(args.out_dir, '_stats.h5')
-    save_stats(fn, means, stds, value_counts)
-
-
-def save_stats(fn, means, stds, value_counts):
-    if os.path.exists(fn):
-        os.remove(fn)
-    means.to_hdf(fn, 'means')
-    stds.to_hdf(fn, 'stds')
-    for k, v in six.iteritems(value_counts):
-        v.to_hdf(fn, 'value_counts/{}'.format(k))
-
-
-def load_stats(fn):
-    with pd.HDFStore(fn, 'r') as f:
-        means = pd.read_hdf(f, 'means')
-        stds = pd.read_hdf(f, 'stds')
-
-        value_counts = {}
-        pre = '/value_counts/'
-        for k in f.keys():
-            if k.startswith(pre):
-                value_counts[k[len(pre):]] = pd.read_hdf(f, k)
-    return means, stds, value_counts
+    save_stats(os.path.join(args.out_dir, 'stats.h5'), stats)
 
 
 def do_featurize(args, parser):
-    parser.error("Not implemented yet.")
+    if args.outfile is None:
+        args.outfile = os.path.join(args.dir, 'embeddings.npz')
+    stats = load_stats(os.path.join(args.dir, 'stats.h5'))
+    files = glob(os.path.join(args.dir, 'feats_*.h5'))
+    region_names = [os.path.basename(f)[6:-3] for f in files]
+    emb_lin, emb_rff, freqs, bandwidth, feature_names = get_embeddings(
+        files, stats=stats, n_freqs=args.n_freqs, bandwidth=args.bandwidth)
+    np.savez(args.outfile,
+             emb_lin=emb_lin, emb_rff=emb_rff,
+             freqs=freqs, bandwidth=bandwidth,
+             feature_names=feature_names, region_names=region_names)
