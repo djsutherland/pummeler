@@ -57,16 +57,18 @@ Run `pummel sort -z csv_pus.zip SORT_DIR`. (A few extra options are shown if you
 
 - Makes a file `SORT_DIR/stats.h5` containing means and standard deviations of the real-valued features, counts of the different values for the categorical features, and a random sample of all the features.
 
-This will take a while (~15 minutes on my fast-ish laptop). Luckily you should only need to do it once per ACS file.
+This will take a while (~15 minutes on my fast-ish laptop) and produce about 4GB of temp data (for the 2006-10 files). Luckily you should only need to do it once per ACS file.
 
 
 ### Featurization
 
 Run `pummel featurize SORT_DIR`. (Again, you have a couple of options shown by `--help`.) This will get both linear embeddings (i.e. means) and random Fourier feature embeddings for each region, saving the output in `SORT_DIR/embeddings.npz`.
 
-On my laptop (with a quad-core Haswell i7), this takes about 15 minutes. Make sure you're using a numpy linked to a fast BLAS (like MKL or OpenBLAS; the easiest way to do this is to use the [Anaconda](https://www.continuum.io/downloads) Python distribution, which includes MKL by default); otherwise, this step will be much slower.
+On my laptop (with a quad-core Haswell i7), this takes about an hour; it scales reasonably well with more cores. Make sure you're using a numpy linked to a fast multithreaded BLAS (like MKL or OpenBLAS; the easiest way to do this is to use the [Anaconda](https://www.continuum.io/downloads) Python distribution, which includes MKL by default); otherwise, this step will be much slower.
 
-The original paper used Fastfood transforms instead of the default random Fourier features used here, which with a good implementation will be faster. I'm not currently aware of a high-quality, easily-available Python-friendly implementation.
+If it's using too much memory, decrease `--chunksize`.
+
+The original paper used Fastfood transforms instead of the default random Fourier features used here, which with a good implementation will be faster. I'm not currently aware of a high-quality, easily-available Python-friendly implementation. A GPU implementation of regular random Fourier features would also help.
 
 `SORT_DIR/embeddings.npz`, which you can load with `np.load`, will then have:
 

@@ -64,6 +64,9 @@ def main():
     io.add_argument('dir', help="The directory where `pummel sort` put stuff.")
     io.add_argument('outfile', nargs='?',
                     help='Where to put embeddings; default DIR/embeddings.npz.')
+    io.add_argument('--chunksize', type=int, default=2**13, metavar='LINES',
+                      help="How much of a region to process at a time; default "
+                           "%(default)s.")
 
     emb = featurize.add_argument_group('Embedding options')
     emb.add_argument('--n-freqs', type=int, default=2048,
@@ -97,7 +100,8 @@ def do_featurize(args, parser):
     files = glob(os.path.join(args.dir, 'feats_*.h5'))
     region_names = [os.path.basename(f)[6:-3] for f in files]
     emb_lin, emb_rff, freqs, bandwidth, feature_names = get_embeddings(
-        files, stats=stats, n_freqs=args.n_freqs, bandwidth=args.bandwidth)
+        files, stats=stats, n_freqs=args.n_freqs, bandwidth=args.bandwidth,
+        chunksize=args.chunksize)
     np.savez(args.outfile,
              emb_lin=emb_lin, emb_rff=emb_rff,
              freqs=freqs, bandwidth=bandwidth,
