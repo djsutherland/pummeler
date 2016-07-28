@@ -98,9 +98,21 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
 
                     for r, r_chunk in chunk.groupby(regions):
                         out = out_fmt.format(r)
-                        r_chunk.to_hdf(
-                            out, 'df', format='table', append=True,
-                            mode='a' if r in created_files else 'w')
+                        try:
+                            r_chunk.to_hdf(
+                                out, 'df', format='table', append=True,
+                                mode='a' if r in created_files else 'w',
+                                complib='blosc', complevel=6)
+                        except ValueError:
+                            # if new chunk has longer strings than previous
+                            # one did, this will cause an error...instead of
+                            # hardcoding sizes, though, just re-write the data
+                            old = pd.read_hdf(out, 'df')
+                            new = pd.concat([old, r_chunk])
+                            r_chunk.to_hdf(
+                                out, 'df', format='table', mode='w',
+                                complib='blosc', complevel=6)
+                        created_files.add(r)
                 bar.update(read)
         bar.finish()
         n_total += read
