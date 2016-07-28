@@ -93,7 +93,8 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
                     for i, tup in enumerate(zip(chunk.ST, chunk.PUMA)):
                         regions[i] = r = puma_to_region.get(tup)
                         if r is None:
-                            not_in_region[tup] += 1
+                            if tup[0] != 11:  # don't worry about DC
+                                not_in_region[tup] += 1
 
                     for r, r_chunk in chunk.groupby(regions):
                         out = out_fmt.format(r)

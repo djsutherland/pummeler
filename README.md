@@ -1,6 +1,6 @@
 # pummeler
 
-This is a set of utilities for analyzing the American Community Survey's Public Use Microdata Survey files (ACS PUMS), mostly following
+This is a set of utilities for analyzing the American Community Survey's Public Use Microdata Sample files (ACS PUMS), mostly following
 
 > Flaxman, Wang, and Smola. Who Supported Obama in 2012? Ecological Inference through Distribution Regression. KDD 2015.
 > ([official](http://dx.doi.org/10.1145/2783258.2783300), [from author](http://sethrf.com/files/ecological.pdf))
@@ -37,7 +37,10 @@ Election results are reported by counties; PUMS data are in census blockgroups, 
 
 Regions are named like `AL_00_01`, which means Alabama's region number 01 in the 2000 geography. If you use 2010 geographies (i.e. you're using ACS data of vintage after 2011), those regions are named `AL_10_01`.
 
-**Note:** Alaska electoral districts are weird. I just lumped all of Alaska into one region.
+Some notes:
+
+- Alaska electoral districts are weird. I just lumped all of Alaska into one region.
+- We skip results from DC, since the CQ Press election data doesn't include it. (**fix this**)
 
 This was done in the Jupyter notebook `notebooks/get electoral regions.ipynb`.
 
