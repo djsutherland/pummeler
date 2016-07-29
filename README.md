@@ -24,13 +24,13 @@ First, download the data from the Census site. You probably want the "csv_pus.zi
 
 ### Picking regions of analysis
 
-Election results are generally reported by counties; PUMS data are in census blockgroups, which are related but not the same. This module ships with regions that merge all overlapping blockgroups / counties, found with [the MABLE/Geocorr tool](http://mcdc2.missouri.edu/websas/geocorr12.html), in Pandas dataframes stored in `data/regions.h5`.
+Election results are generally reported by counties; PUMS data are in census blockgroups, which are related but not the same. This module ships with regions that merge all overlapping blockgroups / counties, found with [the MABLE/Geocorr tool](http://mcdc2.missouri.edu/websas/geocorr12.html), in Pandas dataframes stored in `pummeler/data/regions.h5`.
 
 Regions are named like `AL_00_01`, which means Alabama's region number 01 in the 2000 geography. If you use 2010 geographies (i.e. you're using ACS data of vintage after 2011 – not yet supported, but it will be), those regions are named `AL_10_01`.
 
 **Note:** Alaska electoral districts are weird. For now, I just lumped all of Alaska into one region.
 
-This was done in the Jupyter notebook `notebooks/get regions.ipynb`.
+This was done in the Jupyter notebook [`notebooks/get regions.ipynb`](notebooks/get regions.ipynb).
 
 
 ### Preprocessing
@@ -68,7 +68,7 @@ The original paper used Fastfood transforms instead of the default random Fourie
 
 ### Getting the election data
 
-This package includes results derived from [`huffpostdata/election-2012-results`](https://github.com/huffpostdata/election-2012-results), in `pummeler/data/2012-by-region.csv.gz`. That data was created in `notebooks/election data by region.ipynb`.
+This package includes results derived from [`huffpostdata/election-2012-results`](https://github.com/huffpostdata/election-2012-results), in `pummeler/data/2012-by-region.csv.gz`. That data was created in [`notebooks/election data by region.ipynb`](notebooks/election data by region.ipynb).
 
 There doesn't seem to be a good publicly-available county-level election results resource for years prior to 2012. If you get some, follow that notebook to get results in a similar format. (Your might have an institutional subscription to CQ Press's election data, for example. That source, though, doesn't use FIPS codes, so it'll be a little more annoying to line up; I might do that at some point.)
 
