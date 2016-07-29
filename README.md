@@ -12,7 +12,7 @@ The package currently only supports the 2006-10 5-year estimates, but more will 
 
 ### Installation
 
-`pip install pummeler` should work soon, once it's done enough to have an actual release; it will then be available via `import pummler` and install a `pummel` script.
+`pip install pummeler`; it will then be available via `import pummler` and install a `pummel` script.
 
 If you prefer, you can also check out the source directory, which should work as long as you put the `pummel` directory on your `sys.path` (or start Python from the root of the checkout). In that case you should use the `pummel` script at the top level of the checkout.
 
@@ -75,6 +75,4 @@ There doesn't seem to be a good publicly-available county-level election results
 
 ### Analysis
 
-**TODO**:
-
- - Make a notebook replicating the analysis from the paper, with helpers in the package
+For a basic replication of the model from the paper, see [`notebooks/analyze.ipynb`](notebooks/analyze.ipynb).

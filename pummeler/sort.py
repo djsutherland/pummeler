@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import progressbar as pb  # should be progressbar2
 
-from .geocode_data import geocode_data
+from .data import geocode_data
 from .reader import read_chunks, VERSIONS
 
 
