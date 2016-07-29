@@ -13,7 +13,7 @@ setup(
         'pummeler',
     ],
     package_data={
-        'pummeler': ['data/*.h5'],
+        'pummeler': ['data/*'],
     },
     entry_points={
         'console_scripts': [
