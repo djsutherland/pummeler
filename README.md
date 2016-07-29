@@ -30,7 +30,7 @@ Regions are named like `AL_00_01`, which means Alabama's region number 01 in the
 
 **Note:** Alaska electoral districts are weird. For now, I just lumped all of Alaska into one region.
 
-This was done in the Jupyter notebook [`notebooks/get regions.ipynb`](notebooks/get regions.ipynb).
+This was done in the Jupyter notebook [`notebooks/get regions.ipynb`](notebooks/get regions.ipynb). Centroids are calculated in [`notebooks/region centroids.ipynb`](notebooks/region centroids.ipynb), using a shapefile for counties [from here](https://geonet.esri.com/thread/24614).
 
 
 ### Preprocessing
