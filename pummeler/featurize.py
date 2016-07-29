@@ -122,22 +122,24 @@ def pick_gaussian_bandwidth(stats):
 ################################################################################
 
 def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
-                   chunksize=2**13):
+                   chunksize=2**13, skip_rbf=False):
     n_feats = _num_feats(stats)
     feat_names = None
 
-    if freqs is None:
-        if bandwidth is None:
-            print("Picking bandwidth by median heuristic...",
-                  file=sys.stderr, end='')
-            bandwidth = pick_gaussian_bandwidth(stats)
-            print("picked {}".format(bandwidth), file=sys.stderr)
-        freqs = pick_rff_freqs(n_freqs, bandwidth, n_feats=n_feats)
-    else:
-        n_freqs = freqs.shape[1]
+    if not skip_rbf:
+        if freqs is None:
+            if bandwidth is None:
+                print("Picking bandwidth by median heuristic...",
+                      file=sys.stderr, end='')
+                bandwidth = pick_gaussian_bandwidth(stats)
+                print("picked {}".format(bandwidth), file=sys.stderr)
+            freqs = pick_rff_freqs(n_freqs, bandwidth, n_feats=n_feats)
+        else:
+            n_freqs = freqs.shape[1]
 
     emb_lin = np.empty((len(files), n_feats))
-    emb_rff = np.empty((len(files), 2 * n_freqs))
+    if not skip_rbf:
+        emb_rff = np.empty((len(files), 2 * n_freqs))
 
     bar = pb.ProgressBar(max_value=stats['n_total'])
     bar.start()
@@ -145,7 +147,8 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
     dummies = np.empty((chunksize, n_feats))
     for i, file in enumerate(files):
         lin_emb_pieces = []
-        rff_emb_pieces = []
+        if not skip_rbf:
+            rff_emb_pieces = []
         weights = []
         total_weight = 0
         for c in pd.read_hdf(file, chunksize=chunksize):
@@ -160,7 +163,8 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                             out=feats)
 
             lin_emb_pieces.append(linear_embedding(feats, c.PWGTP))
-            rff_emb_pieces.append(rff_embedding(feats, c.PWGTP, freqs))
+            if not skip_rbf:
+                rff_emb_pieces.append(rff_embedding(feats, c.PWGTP, freqs))
             w = c.PWGTP.sum()
             weights.append(w)
             total_weight += w
@@ -169,10 +173,16 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
             bar.update(read)
 
         emb_lin[i] = 0
-        emb_rff[i] = 0
-        for w, l, r in zip(weights, lin_emb_pieces, rff_emb_pieces):
+        for w, l in zip(weights, lin_emb_pieces):
             emb_lin[i] += l * (w / total_weight)
-            emb_rff[i] += r * (w / total_weight)
+
+        if not skip_rbf:
+            emb_rff[i] = 0
+            for w, r in zip(weights, rff_emb_pieces):
+                emb_rff[i] += r * (w / total_weight)
     bar.finish()
 
-    return emb_lin, emb_rff, freqs, bandwidth, feat_names
+    if skip_rbf:
+        return emb_lin, feat_names
+    else:
+        return emb_lin, emb_rff, freqs, bandwidth, feat_names

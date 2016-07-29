@@ -69,6 +69,9 @@ def main():
                            "%(default)s.")
 
     emb = featurize.add_argument_group('Embedding options')
+    emb.add_argument('--skip-rbf', action='store_true', default=False,
+                     help="Skip getting the RBF kernel embedding and only get "
+                          "the linear one (much, much faster).")
     emb.add_argument('--n-freqs', type=int, default=2048,
                      help='Number of random frequencies to use (half the '
                           'embedding dimension; default %(default)s).')
@@ -99,10 +102,16 @@ def do_featurize(args, parser):
     stats = load_stats(os.path.join(args.dir, 'stats.h5'))
     files = glob(os.path.join(args.dir, 'feats_*.h5'))
     region_names = [os.path.basename(f)[6:-3] for f in files]
-    emb_lin, emb_rff, freqs, bandwidth, feature_names = get_embeddings(
-        files, stats=stats, n_freqs=args.n_freqs, bandwidth=args.bandwidth,
-        chunksize=args.chunksize)
-    np.savez(args.outfile,
-             emb_lin=emb_lin, emb_rff=emb_rff,
-             freqs=freqs, bandwidth=bandwidth,
-             feature_names=feature_names, region_names=region_names)
+    if args.skip_rbf:
+        emb_lin, feature_names = get_embeddings(
+            files, stats=stats, chunksize=args.chunksize, skip_rbf=True)
+        np.savez(args.outfile, emb_lin=emb_lin,
+                 feature_names=feature_names, region_names=region_names)
+    else:
+        emb_lin, emb_rff, freqs, bandwidth, feature_names = get_embeddings(
+            files, stats=stats, n_freqs=args.n_freqs, bandwidth=args.bandwidth,
+            chunksize=args.chunksize)
+        np.savez(args.outfile,
+                 emb_lin=emb_lin, emb_rff=emb_rff,
+                 freqs=freqs, bandwidth=bandwidth,
+                 feature_names=feature_names, region_names=region_names)

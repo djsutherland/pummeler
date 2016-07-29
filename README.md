@@ -50,7 +50,9 @@ This will take a while (~15 minutes on my fast-ish laptop) and produce about 4GB
 
 Run `pummel featurize SORT_DIR`. (Again, you have a couple of options shown by `--help`.) This will get both linear embeddings (i.e. means) and random Fourier feature embeddings for each region, saving the output in `SORT_DIR/embeddings.npz`.
 
-On my laptop (with a quad-core Haswell i7), this takes about an hour; it scales reasonably well with more cores. Make sure you're using a numpy linked to a fast multithreaded BLAS (like MKL or OpenBLAS; the easiest way to do this is to use the [Anaconda](https://www.continuum.io/downloads) Python distribution, which includes MKL by default); otherwise, this step will be much slower.
+**NOTE:** As it turns out, with this featurization, linear embeddings seems to be comparable to random Fourier feature embeddings. You can save yourself a bunch of time and the world a smidgen of global warming if you skip them with `--skip-rbf`.
+
+On my laptop (with a quad-core Haswell i7), doing it with random Fourier features takes about an hour; the only-linear version takes about ten minutes. Make sure you're using a numpy linked to a fast multithreaded BLAS (like MKL or OpenBLAS; the easiest way to do this is to use the [Anaconda](https://www.continuum.io/downloads) Python distribution, which includes MKL by default); otherwise, this step will be much slower.
 
 If it's using too much memory, decrease `--chunksize`.
 
@@ -63,7 +65,9 @@ The original paper used Fastfood transforms instead of the default random Fourie
  - `region_names`: the names corresponding to the first axis of the embeddings.
  - `feature_names`: the names for each used feature.
  - `freqs`: the `n_feats x n_freq` array of random frequencies for the random Fourier features.
- - `bandwidths`: the bandwidth used for selecting the `freqs`.
+ - `bandwidth`: the bandwidth used for selecting the `freqs`.
+
+ (If you did `--skip-rbf`, `emb_rff`, `freqs`, and `bandwidth` won't be present.)
 
 
 ### Getting the election data
