@@ -77,5 +77,4 @@ There doesn't seem to be a good publicly-available county-level election results
 
 **TODO**:
 
- - Get geographic locations for each region
  - Make a notebook replicating the analysis from the paper, with helpers in the package
