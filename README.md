@@ -24,13 +24,15 @@ First, download the data from the Census site. You probably want the "csv_pus.zi
 
 ### Picking regions of analysis
 
-Election results are generally reported by counties; PUMS data are in census blockgroups, which are related but not the same. This module ships with regions that merge all overlapping blockgroups / counties, found with [the MABLE/Geocorr tool](http://mcdc2.missouri.edu/websas/geocorr12.html), in Pandas dataframes stored in `pummeler/data/regions.h5`.
+Election results are generally reported by counties; PUMS data are in their own special [Public Use Microdata Areas](https://www.census.gov/geo/reference/puma.html), which are related but not the same. This module ships with regions that merge all overlapping blockgroups / counties, found with [the MABLE/Geocorr tool](http://mcdc2.missouri.edu/websas/geocorr12.html), in Pandas dataframes stored in `pummeler/data/regions.h5`.
 
 Regions are named like `AL_00_01`, which means Alabama's region number 01 in the 2000 geography. If you use 2010 geographies (i.e. you're using ACS data of vintage after 2011 – not yet supported, but it will be), those regions are named `AL_10_01`.
 
 **Note:** Alaska electoral districts are weird. For now, I just lumped all of Alaska into one region.
 
 This was done in the Jupyter notebook [`notebooks/get regions.ipynb`](notebooks/get regions.ipynb). Centroids are calculated in [`notebooks/region centroids.ipynb`](notebooks/region centroids.ipynb), using a shapefile for counties [from here](https://geonet.esri.com/thread/24614).
+
+**TODO:** Could switch to precinct-level results, which should end up with more regions in the end. Results are available [here](http://projects.iq.harvard.edu/eda/data), including shapefiles if you go into the state-by-state section, so it shouldn't be *too* much work.
 
 
 ### Preprocessing
