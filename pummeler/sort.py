@@ -10,20 +10,73 @@ import pandas as pd
 import progressbar as pb  # should be progressbar2
 
 from .data import geocode_data
-from .reader import read_chunks, VERSIONS
+from .reader import read_chunks, VERSIONS, DEFAULT_VERSION
+
+################################################################################
+### Wrapper to sort by "regions", e.g. AL_00_01
+
+class RegionGrouper(object):
+    def __init__(self, info):
+        key = 'puma_region_{}'.format(info['region_year'])
+        self.puma_to_region = geocode_data(key).region.to_dict()
+        self.not_in_region = Counter()
+
+    def assign_groups(self, chunk):
+        regions = np.empty(chunk.shape[0], dtype=object)
+        for i, tup in enumerate(zip(chunk.ST, chunk.PUMA)):
+            regions[i] = r = self.puma_to_region.get(tup)
+            if r is None:
+                self.not_in_region[tup] += 1
+        return regions
+
+    def done(self):
+        if self.not_in_region:
+            print("Records not in a region:")
+            for k, count in self.not_in_region.most_common():
+                print(k, count)
 
 
-def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
-                   version='2006-10', chunksize=10**5, n_to_sample=5000,
-                   stats_only=False):
+def sort_by_region(*args, **kwargs):
+    info = VERSIONS[kwargs.get('version', DEFAULT_VERSION)]
+    groupers = [('region', RegionGrouper(info))]
+    return _sort_by_grouper(*args, groupers=groupers, **kwargs)
+
+
+################################################################################
+### Wrapper to sort by state
+
+class GroupByAttr(object):
+    def __init__(self, attr):
+        self.attr = attr
+
+    def assign_groups(self, chunk):
+        return chunk[self.attr]
+
+    def done(self):
+        pass
+
+
+def sort_by_state(*args, **kwargs):
+    groupers = [('state', GroupByAttr('ST'))]
+    return _sort_by_grouper(*args, groupers=groupers, **kwargs)
+
+
+################################################################################
+### Main workhorse
+
+SORT_CHOICES = {
+    'region': sort_by_region,
+    'state': sort_by_state,
+}
+
+def _sort_by_grouper(source, out_fmt, groupers, voters_only=True, adj_inc=True,
+                     version=DEFAULT_VERSION, chunksize=10**5, n_to_sample=5000,
+                     stats_only=False):
     info = VERSIONS[version]
     all_cols = set(info['meta_cols'] + info['weight_cols'] + info['real_feats']
                    + info['discrete_feats'] + info['alloc_flags'])
     real_feats = info['real_feats']
     discrete = info['discrete_feats'] + info['alloc_flags']
-
-    key = 'puma_region_{}'.format(info['region_year'])
-    puma_to_region = geocode_data(key).region.to_dict()
 
     created_files = set()
 
@@ -31,7 +84,6 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
     value_counts = {}  # column name => sum of col.value_counts()
 
     n_total = 0
-    not_in_region = Counter()
 
     if isinstance(source, list):
         files = source
@@ -89,37 +141,35 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
 
                 # output into files by region
                 if not stats_only:
-                    regions = np.empty(chunk.shape[0], dtype=object)
-                    for i, tup in enumerate(zip(chunk.ST, chunk.PUMA)):
-                        regions[i] = r = puma_to_region.get(tup)
-                        if r is None:
-                            not_in_region[tup] += 1
+                    for name, grouper in groupers:
+                        groups = grouper.assign_groups(chunk)
+                        for g, g_chunk in chunk.groupby(groups):
+                            out = out_fmt.format(type=name, group=g)
+                            d = os.path.dirname(out)
+                            if not os.path.isdir(d):
+                                os.makedirs(d)
 
-                    for r, r_chunk in chunk.groupby(regions):
-                        out = out_fmt.format(r)
-                        try:
-                            r_chunk.to_hdf(
-                                out, 'df', format='table', append=True,
-                                mode='a' if r in created_files else 'w',
-                                complib='blosc', complevel=6)
-                        except ValueError:
-                            # if new chunk has longer strings than previous
-                            # one did, this will cause an error...instead of
-                            # hardcoding sizes, though, just re-write the data
-                            old = pd.read_hdf(out, 'df')
-                            new = pd.concat([old, r_chunk])
-                            r_chunk.to_hdf(
-                                new, 'df', format='table', mode='w',
-                                complib='blosc', complevel=6)
-                        created_files.add(r)
+                            try:
+                                g_chunk.to_hdf(
+                                    out, 'df', format='table', append=True,
+                                    mode='a' if g in created_files else 'w',
+                                    complib='blosc', complevel=6)
+                            except ValueError:
+                                # if new chunk has longer strings than previous
+                                # one did, this will cause an error...instead
+                                # of hardcoding sizes, though, just re-write
+                                # the data when that happens
+                                old = pd.read_hdf(out, 'df')
+                                new = pd.concat([old, g_chunk])
+                                g_chunk.to_hdf(
+                                    new, 'df', format='table', mode='w',
+                                    complib='blosc', complevel=6)
+                            created_files.add(g)
                 bar.update(read)
         bar.finish()
         n_total += read
 
-    if not_in_region:
-        print("Records not in a region:")
-        for k, count in not_in_region.most_common():
-            print(k, count)
+    grouper.done()
 
     total = sum(n_nonnan for n_nonnan, mean, mean_sq in real_info)
     real_means = 0

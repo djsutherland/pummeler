@@ -6,9 +6,9 @@ import os
 import numpy as np
 
 from .featurize import get_embeddings
-from .reader import VERSIONS
+from .reader import VERSIONS, DEFAULT_VERSION
 from .stats import load_stats, save_stats
-from .sort import sort_by_region
+from .sort import SORT_CHOICES
 
 
 def main():
@@ -25,7 +25,7 @@ def main():
 
     ############################################################################
     sort = subparsers.add_parser(
-        'sort', help="Sort the data by region and collect statistics about it.")
+        'sort', help="Sort the data and collect statistics about it.")
     sort.set_defaults(func=do_sort)
 
     io = sort.add_argument_group('Input/output options')
@@ -42,6 +42,20 @@ def main():
     io.add_argument('--stats-only', action='store_true', default=False,
                     help="Only compute the stats, don't do the sorting.")
 
+    gs = sort.add_argument_group('Grouping options')
+    _d = " (default)."
+    _n = "."
+    def add_group(name, default, desc):
+        g = gs.add_mutually_exclusive_group()
+        g.add_argument(
+            '--{}'.format(name), action='store_true', default=default,
+            help="Do a grouping by {}".format(desc) + (_d if default else _n))
+        g.add_argument(
+            '--no-{}'.format(name), action='store_false', dest=name,
+            help="Don't group by {}".format(desc) + (_d if not default else _n))
+    add_group('region', default=True, desc="PUMA/county region")
+    add_group('state', default=False, desc='state')
+
     fmt = sort.add_argument_group('Format options')
     g = fmt.add_mutually_exclusive_group()
     g.add_argument('--voters-only', action='store_true', default=True,
@@ -49,7 +63,7 @@ def main():
                         "(default).")
     g.add_argument('--all-people', action='store_false', dest='voters_only',
                    help="Include all records from the files.")
-    fmt.add_argument('--version', choices=VERSIONS, default='2006-10',
+    fmt.add_argument('--version', choices=VERSIONS, default=DEFAULT_VERSION,
                       help="The format of the ACS PUMS files in use; default "
                            "%(default)s.")
 
@@ -86,11 +100,9 @@ def main():
 
 
 def do_sort(args, parser):
-    if not os.path.isdir(args.out_dir):
-        os.makedirs(args.out_dir)
-    stats = sort_by_region(
+    stats = (sort_by_region (
         args.zipfile or args.csv_files,
-        os.path.join(args.out_dir, 'feats_{}.h5'),
+        os.path.join(args.out_dir, '{type}', 'feats_{group}.h5'),
         voters_only=args.voters_only, stats_only=args.stats_only,
         adj_inc=True, version=args.version, chunksize=args.chunksize)
     save_stats(os.path.join(args.out_dir, 'stats.h5'), stats)

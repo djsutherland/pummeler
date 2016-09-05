@@ -60,6 +60,7 @@ VERSIONS = {
         'region_year': '00',
     }
 }
+DEFAULT_VERSION = '2006-10'
 
 # feat_cols = set(discrete_feats) | set(alloc_flags) | set(real_feats)
 # all_cols = set(meta_cols) | feat_cols
