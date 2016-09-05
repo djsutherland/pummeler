@@ -5,6 +5,7 @@ import os
 import sys
 import zipfile
 
+import h5py
 import numpy as np
 import pandas as pd
 import progressbar as pb  # should be progressbar2
@@ -97,20 +98,28 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
 
                     for r, r_chunk in chunk.groupby(regions):
                         out = out_fmt.format(r)
+
+                        mode = 'a' if r in created_files else 'w'
+                        with h5py.File(out, mode) as f:
+                            ds = f.require_dataset('total_wt', (), np.int64)
+                            total_wt = ds[()] + r_chunk.PWGTP.sum()
+                            ds[()] = total_wt
+
                         try:
                             r_chunk.to_hdf(
                                 out, 'df', format='table', append=True,
-                                mode='a' if r in created_files else 'w',
-                                complib='blosc', complevel=6)
+                                mode='a', complib='blosc', complevel=6)
                         except ValueError:
                             # if new chunk has longer strings than previous
                             # one did, this will cause an error...instead of
                             # hardcoding sizes, though, just re-write the data
                             old = pd.read_hdf(out, 'df')
                             new = pd.concat([old, r_chunk])
-                            r_chunk.to_hdf(
-                                new, 'df', format='table', mode='w',
+                            new.to_hdf(
+                                out, 'df', format='table', mode='w',
                                 complib='blosc', complevel=6)
+                            with h5py.File(out, 'a') as f:
+                                f['total_wt'] = total_wt
                         created_files.add(r)
                 bar.update(read)
         bar.finish()

@@ -22,6 +22,7 @@ setup(
     },
     description="Utilities for processing and analyzing ACS PUMS files.",
     install_requires=[
+        'h5py',
         'numpy',
         'pandas',
         'progressbar2',
