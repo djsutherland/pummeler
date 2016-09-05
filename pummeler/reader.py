@@ -1,5 +1,4 @@
 import pandas as pd
-import zipfile
 
 
 weirds = ("indp02 indp07 occp02 occp10 OCCP10 OCCP12 "

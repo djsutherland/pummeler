@@ -109,7 +109,7 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
                             old = pd.read_hdf(out, 'df')
                             new = pd.concat([old, r_chunk])
                             r_chunk.to_hdf(
-                                out, 'df', format='table', mode='w',
+                                new, 'df', format='table', mode='w',
                                 complib='blosc', complevel=6)
                         created_files.add(r)
                 bar.update(read)
