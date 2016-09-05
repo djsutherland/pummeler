@@ -7,34 +7,40 @@ import progressbar as pb
 from sklearn.metrics.pairwise import euclidean_distances
 import six
 
-from .reader import VERSIONS, read_chunks
+from .reader import VERSIONS
 
 
-def get_dummies(df, stats, num_feats=None, ret_df=True, dtype=np.float64,
-                out=None):
+def get_dummies(df, stats, num_feats=None, ret_df=True, skip_feats=None,
+                dtype=np.float64, out=None):
     '''
     Gets features for the person records in `df`: standardizes the real-valued
-    features, and does one-hot encoding for the discrete ones.
+    features, and does one-hot encoding for the discrete ones. Skip any
+    features in skip_feats.
     '''
     info = VERSIONS[stats['version']]
+    skip_feats = set() if skip_feats is None else set(skip_feats)
     if num_feats is None:
-        num_feats = _num_feats(stats)
+        num_feats = _num_feats(stats, skip_feats=skip_feats)
 
     if out is None:
         out = np.empty((df.shape[0], num_feats), dtype=dtype)
     else:
         assert out.shape == (df.shape[0], num_feats)
 
-    reals = out[:, :len(info['real_feats'])]
-    reals[:] = df[info['real_feats']]
+    real_feats = [f for f in info['real_feats'] if f not in skip_feats]
+
+    reals = out[:, :len(real_feats)]
+    reals[:] = df[real_feats]
     reals[:] -= stats['real_means']
     reals[:] /= stats['real_stds']
     reals[np.isnan(reals)] = 0
     if ret_df:
-        feat_names = list(info['real_feats'])
-    start_col = len(info['real_feats'])
+        feat_names = list(real_feats)
+    start_col = len(real_feats)
 
     for k in info['discrete_feats'] + info['alloc_flags']:
+        if k in skip_feats:
+            continue
         vc = stats['value_counts'][k]
         c = pd.Categorical(df[k], categories=vc.index).codes
         n_codes = len(vc)
@@ -57,11 +63,14 @@ def get_dummies(df, stats, num_feats=None, ret_df=True, dtype=np.float64,
         return out
 
 
-def _num_feats(stats):
-    n = stats['real_means'].size
+def _num_feats(stats, skip_feats=None):
+    skip_feats = set() if skip_feats is None else set(skip_feats)
     n_total = stats['n_total']
+
+    n = len(set(stats['real_means'].index) - skip_feats)
     for k, v in six.iteritems(stats['value_counts']):
-        n += v.size + (1 if v.sum() < n_total else 0)
+        if k not in skip_feats:
+            n += v.size + (1 if v.sum() < n_total else 0)
     return n
 
 
@@ -99,22 +108,26 @@ def rff_embedding(feats, wts, freqs, out=None):
     return out
 
 
-def pick_rff_freqs(n_freqs, bandwidth, stats=None, n_feats=None):
+def pick_rff_freqs(n_freqs, bandwidth, n_feats=None, 
+                   stats=None, skip_feats=None):
     '''
     Sets up sampling with random Fourier features corresponding to a Gaussian
     kernel with the given bandwidth, with an embedding dimension of `2*n_freqs`.
+
+    Either pass n_feats, or pass stats (and maybe skip_feats) to compute it.
     '''
     if n_feats is None:
-        n_feats = _num_feats(stats)
+        n_feats = _num_feats(stats, skip_feats=skip_feats)
     return np.random.normal(0, 1 / bandwidth, size=(n_feats, n_freqs))
 
 
-def pick_gaussian_bandwidth(stats):
+def pick_gaussian_bandwidth(stats, skip_feats=None):
     '''
     Finds the median distance between features from the random sample saved
     in stats.
     '''
-    samp = get_dummies(stats['sample'], stats, ret_df=False)
+    samp = get_dummies(
+        stats['sample'], stats, ret_df=False, skip_feats=skip_feats)
     D2 = euclidean_distances(samp, squared=True)
     return np.sqrt(np.median(D2[np.triu_indices_from(D2, k=1)]))
 
@@ -122,8 +135,9 @@ def pick_gaussian_bandwidth(stats):
 ################################################################################
 
 def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
-                   chunksize=2**13, skip_rbf=False):
-    n_feats = _num_feats(stats)
+                   chunksize=2**13, skip_rbf=False, skip_feats=None):
+    skip_feats = set() if skip_feats is None else set(skip_feats)
+    n_feats = _num_feats(stats, skip_feats=skip_feats)
     feat_names = None
 
     if not skip_rbf:
@@ -131,7 +145,8 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
             if bandwidth is None:
                 print("Picking bandwidth by median heuristic...",
                       file=sys.stderr, end='')
-                bandwidth = pick_gaussian_bandwidth(stats)
+                bandwidth = pick_gaussian_bandwidth(
+                        stats, skip_feats=skip_feats)
                 print("picked {}".format(bandwidth), file=sys.stderr)
             freqs = pick_rff_freqs(n_freqs, bandwidth, n_feats=n_feats)
         else:
@@ -155,12 +170,12 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
             feats = dummies[:c.shape[0], :]
 
             if feat_names is None:
-                df = get_dummies(c, stats, num_feats=n_feats, ret_df=True,
-                                 out=feats)
+                df = get_dummies(c, stats, num_feats=n_feats,
+                                 skip_feats=skip_feats, ret_df=True, out=feats)
                 feat_names = list(df.columns)
             else:
-                get_dummies(c, stats, num_feats=n_feats, ret_df=False,
-                            out=feats)
+                get_dummies(c, stats, num_feats=n_feats,
+                            skip_feats=skip_feats, ret_df=False, out=feats)
 
             lin_emb_pieces.append(linear_embedding(feats, c.PWGTP))
             if not skip_rbf:

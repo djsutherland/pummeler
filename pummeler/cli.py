@@ -4,8 +4,6 @@ from glob import glob
 import os
 
 import numpy as np
-import pandas as pd
-import six
 
 from .featurize import get_embeddings
 from .reader import VERSIONS
@@ -79,6 +77,8 @@ def main():
                      help='Gaussian kernel bandwidth. Default: choose the '
                           'median distance among the random sample saved in '
                           'the stats file.')
+    emb.add_argument('--skip-feats', nargs='+', metavar='FEAT_NAME',
+                     help="Don't include some features in the embedding.")
 
     ############################################################################
     args = parser.parse_args()
@@ -104,13 +104,14 @@ def do_featurize(args, parser):
     region_names = [os.path.basename(f)[6:-3] for f in files]
     if args.skip_rbf:
         emb_lin, feature_names = get_embeddings(
-            files, stats=stats, chunksize=args.chunksize, skip_rbf=True)
+            files, stats=stats, chunksize=args.chunksize, skip_rbf=True,
+            skip_feats=args.skip_feats)
         np.savez(args.outfile, emb_lin=emb_lin,
                  feature_names=feature_names, region_names=region_names)
     else:
         emb_lin, emb_rff, freqs, bandwidth, feature_names = get_embeddings(
             files, stats=stats, n_freqs=args.n_freqs, bandwidth=args.bandwidth,
-            chunksize=args.chunksize)
+            skip_feats=args.skip_feats, chunksize=args.chunksize)
         np.savez(args.outfile,
                  emb_lin=emb_lin, emb_rff=emb_rff,
                  freqs=freqs, bandwidth=bandwidth,
