@@ -81,6 +81,15 @@ def main():
                      help="Don't include some features in the embedding.")
 
     ############################################################################
+    export = subparsers.add_parser(
+        'export', help="Export features in embeddings.npz as CSV files.")
+    io2 = export.add_argument_group('Input/output options')
+    io2.add_argument('dir', help="The directory where `pummel featurize` put stuff.")
+    io2.add_argument('infile', nargs='?',
+                    help='Location of embeddings created by `pummel embeddings`; default DIR/embeddings.npz.')
+    export.set_defaults(func=do_export)
+
+    ############################################################################
     args = parser.parse_args()
     args.func(args, parser)
 
