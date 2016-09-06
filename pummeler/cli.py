@@ -95,6 +95,19 @@ def do_sort(args, parser):
         adj_inc=True, version=args.version, chunksize=args.chunksize)
     save_stats(os.path.join(args.out_dir, 'stats.h5'), stats)
 
+def do_export(args, parser):
+    if args.infile is None:
+        args.infile = os.path.join(args.dir, 'embeddings.npz')
+    data = np.load(args.infile)
+    df = pd.DataFrame(data['emb_lin'])
+    df.set_index(data['region_names'],inplace=True)
+    df.columns = data['feature_names']
+    df.to_csv(os.path.join(args.dir,'embeddings_linear.csv'), index_label="region")
+    print("linear embeddings saved in",os.path.join(args.dir,'embeddings_linear.csv'))
+    df = pd.DataFrame(data['emb_rff'])
+    df.set_index(data['region_names'],inplace=True)
+    df.to_csv(os.path.join(args.dir,'embeddings_rff.csv'), index_label="region")
+    print("rff embeddings saved in",os.path.join(args.dir,'embeddings_rff.csv'))
 
 def do_featurize(args, parser):
     if args.outfile is None:
