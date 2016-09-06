@@ -108,7 +108,7 @@ def rff_embedding(feats, wts, freqs, out=None):
     return out
 
 
-def pick_rff_freqs(n_freqs, bandwidth, n_feats=None, 
+def pick_rff_freqs(n_freqs, bandwidth, seed=None, n_feats=None,
                    stats=None, skip_feats=None):
     '''
     Sets up sampling with random Fourier features corresponding to a Gaussian
@@ -118,6 +118,8 @@ def pick_rff_freqs(n_freqs, bandwidth, n_feats=None,
     '''
     if n_feats is None:
         n_feats = _num_feats(stats, skip_feats=skip_feats)
+    if not seed is None:
+        np.random.seed(seed)
     return np.random.normal(0, 1 / bandwidth, size=(n_feats, n_freqs))
 
 
@@ -135,7 +137,7 @@ def pick_gaussian_bandwidth(stats, skip_feats=None):
 ################################################################################
 
 def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
-                   chunksize=2**13, skip_rbf=False, skip_feats=None):
+                   chunksize=2**13, skip_rbf=False, skip_feats=None, seed=None):
     skip_feats = set() if skip_feats is None else set(skip_feats)
     n_feats = _num_feats(stats, skip_feats=skip_feats)
     feat_names = None
@@ -148,7 +150,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                 bandwidth = pick_gaussian_bandwidth(
                         stats, skip_feats=skip_feats)
                 print("picked {}".format(bandwidth), file=sys.stderr)
-            freqs = pick_rff_freqs(n_freqs, bandwidth, n_feats=n_feats)
+            freqs = pick_rff_freqs(n_freqs, bandwidth, seed, n_feats=n_feats)
         else:
             n_freqs = freqs.shape[1]
 
