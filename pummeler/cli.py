@@ -77,7 +77,7 @@ def main():
                      help='Gaussian kernel bandwidth. Default: choose the '
                           'median distance among the random sample saved in '
                           'the stats file.')
-    emb.add_argument('--seed', type=int, default=-1,
+    emb.add_argument('--seed', type=int, default=None,
                      help='Random seed for generating random frequencies. '
                           'Default: none')
     emb.add_argument('--skip-feats', nargs='+', metavar='FEAT_NAME',
