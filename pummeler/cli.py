@@ -114,7 +114,8 @@ def do_featurize(args, parser):
     else:
         emb_lin, emb_rff, freqs, bandwidth, feature_names = get_embeddings(
             files, stats=stats, n_freqs=args.n_freqs, bandwidth=args.bandwidth,
-            skip_feats=args.skip_feats, seed=args.seed, chunksize=args.chunksize)
+            skip_feats=args.skip_feats, seed=args.seed,
+            chunksize=args.chunksize)
         np.savez(args.outfile,
                  emb_lin=emb_lin, emb_rff=emb_rff,
                  freqs=freqs, bandwidth=bandwidth,
