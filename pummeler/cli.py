@@ -78,6 +78,9 @@ def main():
                      help='Gaussian kernel bandwidth. Default: choose the '
                           'median distance among the random sample saved in '
                           'the stats file.')
+    emb.add_argument('--seed', type=int, default=None,
+                     help='Random seed for generating random frequencies. '
+                          'Default: none')
     emb.add_argument('--skip-feats', nargs='+', metavar='FEAT_NAME',
                      help="Don't include some features in the embedding.")
 
@@ -128,7 +131,8 @@ def do_featurize(args, parser):
     else:
         emb_lin, emb_rff, freqs, bandwidth, feature_names = get_embeddings(
             files, stats=stats, n_freqs=args.n_freqs, bandwidth=args.bandwidth,
-            skip_feats=args.skip_feats, chunksize=args.chunksize)
+            skip_feats=args.skip_feats, seed=args.seed,
+            chunksize=args.chunksize)
         np.savez(args.outfile,
                  emb_lin=emb_lin, emb_rff=emb_rff,
                  freqs=freqs, bandwidth=bandwidth,
