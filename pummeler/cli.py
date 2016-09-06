@@ -4,6 +4,7 @@ from glob import glob
 import os
 
 import numpy as np
+import pandas as pd
 
 from .featurize import get_embeddings
 from .reader import VERSIONS
@@ -81,6 +82,22 @@ def main():
                      help="Don't include some features in the embedding.")
 
     ############################################################################
+    export = subparsers.add_parser(
+        'export', help="Export features in embeddings.npz as CSV files.")
+    export.set_defaults(func=do_export)
+
+    io = export.add_argument_group('Input/output options')
+    io.add_argument('dir', help="Where to put the outputs.")
+    io.add_argument('infile', nargs='?',
+                    help="Location of embeddings created by `pummel feauturize`"
+                         "; default DIR/embeddings.npz.")
+    io.add_argument('--out-name', metavar='BASE',
+                    help="Prefix for embedding output files, so that they "
+                         "go e.g. in DIR/BASE_linear.csv. Default to "
+                         "the basename of INFILE if it's in DIR or "
+                         "otherwise 'embeddings'.")
+
+    ############################################################################
     args = parser.parse_args()
     args.func(args, parser)
 
@@ -116,3 +133,31 @@ def do_featurize(args, parser):
                  emb_lin=emb_lin, emb_rff=emb_rff,
                  freqs=freqs, bandwidth=bandwidth,
                  feature_names=feature_names, region_names=region_names)
+
+
+def do_export(args, parser):
+    if args.infile is None:
+        args.infile = os.path.join(args.dir, 'embeddings.npz')
+
+    if args.out_name is None:
+        rel = os.path.relpath(args.infile, args.dir)
+        if '/' in rel:
+            args.out_name = 'embeddings'
+        else:
+            args.out_name = rel[:-4] if rel.endswith('.npz') else rel
+    out_pattern = os.path.join(args.dir, args.out_name + '_{}.csv')
+
+    with np.load(args.infile) as data:
+        path = out_pattern.format('linear')
+        df = pd.DataFrame(data['emb_lin'])
+        df.set_index(data['region_names'], inplace=True)
+        df.columns = data['feature_names']
+        df.to_csv(path, index_label="region")
+        print("Linear embeddings saved in {}".format(path))
+
+        if 'emb_rff' in data:
+            path = out_pattern.format('rff')
+            df = pd.DataFrame(data['emb_rff'])
+            df.set_index(data['region_names'], inplace=True)
+            df.to_csv(path, index_label="region")
+            print("Fourier embeddings saved in {}".format(path))
