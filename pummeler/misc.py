@@ -7,9 +7,12 @@ import numpy as np
 
 def get_state_embeddings(embeddings_fn):
     with np.load(embeddings_fn) as d:
-        fm = build_file_map(d['region_names'], os.path.dirname(embeddings_fn))
+        dirname = os.path.dirname(embeddings_fn)
+        fm, state_names = build_file_map(d['region_names'], dirname)
         w = get_group_weights(fm)
-        return {k: w.dot(d[k]) for k in d if k.startswith('emb_')}
+        ret = {k: w.dot(d[k]) for k in d if k.startswith('emb_')}
+        ret['state_names'] = state_names
+        return ret
 
 
 def get_group_weights(file_map):
@@ -39,8 +42,12 @@ def get_group_weights(file_map):
 
 
 def build_file_map(region_names, outdir):
-    return [
-        list(pairs) for state, pairs in groupby(
-            enumerate(os.path.join(outdir, 'feats_{}.h5'.format(r))
-                      for r in region_names),
-            lambda x: region_names[x[0]].split('_', 1)[0])]
+    file_map = []
+    state_names = []
+
+    fns = [os.path.join(outdir, 'feats_{}.h5'.format(r)) for r in region_names]
+    get_state = lambda pair: region_names[pair[0]].split('_', 1)[0]
+    for state, pairs in groupby(enumerate(fns), get_state):
+        file_map.append(list(pairs))
+        state_names.append(state)
+    return file_map, state_names
