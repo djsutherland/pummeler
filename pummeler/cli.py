@@ -84,9 +84,10 @@ def main():
     emb.add_argument('--skip-feats', nargs='+', metavar='FEAT_NAME',
                      help="Don't include some features in the embedding.")
 
-    emb.add_argument('--sex', type=int, default=None, help=
-                          'Subset data to a specific sex (1 or 2)? '
-                          'Default: %(default)s).')
+    emb.add_argument('--subset', type=str, default=None, help=
+                          'Subset data using Pandas.DataFrame.query '
+                          'Example: --subset "SEX == 1 & AGEP > 45"\n'
+                          'Default: none.')
 
     ############################################################################
     export = subparsers.add_parser(
@@ -132,7 +133,7 @@ def do_featurize(args, parser):
     if args.skip_rbf:
         emb_lin, feature_names = get_embeddings(
             files, stats=stats, chunksize=args.chunksize, skip_rbf=True,
-            skip_feats=args.skip_feats)
+            skip_feats=args.skip_feats, subset=args.subset)
         np.savez(args.outfile, emb_lin=emb_lin,
                  feature_names=feature_names, region_names=region_names)
     else:
