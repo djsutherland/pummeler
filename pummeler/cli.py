@@ -84,6 +84,10 @@ def main():
     emb.add_argument('--skip-feats', nargs='+', metavar='FEAT_NAME',
                      help="Don't include some features in the embedding.")
 
+    emb.add_argument('--sex', type=int, default=None, help=
+                          'Subset data to a specific sex (1 or 2)? '
+                          'Default: %(default)s).')
+
     ############################################################################
     export = subparsers.add_parser(
         'export', help="Export features in embeddings.npz as CSV files.")
