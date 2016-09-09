@@ -136,7 +136,8 @@ def pick_gaussian_bandwidth(stats, skip_feats=None):
 ################################################################################
 
 def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
-                   chunksize=2**13, skip_rbf=False, skip_feats=None, seed=None):
+                   chunksize=2**13, skip_rbf=False, skip_feats=None, seed=None,
+                   subset=None):
     skip_feats = set() if skip_feats is None else set(skip_feats)
     n_feats = _num_feats(stats, skip_feats=skip_feats)
     feat_names = None
@@ -169,6 +170,8 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
         weights = []
         total_weight = 0
         for c in pd.read_hdf(file, chunksize=chunksize):
+            if not subset is None:
+                c = c.query(subset)
             feats = dummies[:c.shape[0], :]
 
             if feat_names is None:

@@ -10,7 +10,7 @@ from .featurize import get_embeddings
 from .reader import VERSIONS
 from .stats import load_stats, save_stats
 from .sort import sort_by_region
-
+from .misc import get_state_embeddings
 
 def main():
     parser = argparse.ArgumentParser(
@@ -84,6 +84,11 @@ def main():
     emb.add_argument('--skip-feats', nargs='+', metavar='FEAT_NAME',
                      help="Don't include some features in the embedding.")
 
+    emb.add_argument('--subset', type=str, default=None, help=
+                          'Subset data using Pandas.DataFrame.query '
+                          'Example: --subset "SEX == 1 & AGEP > 45"\n'
+                          'Default: none.')
+
     ############################################################################
     export = subparsers.add_parser(
         'export', help="Export features in embeddings.npz as CSV files.")
@@ -99,9 +104,13 @@ def main():
                          "go e.g. in DIR/BASE_linear.csv. Default to "
                          "the basename of INFILE if it's in DIR or "
                          "otherwise 'embeddings'.")
+    io.add_argument('--states', action="store_true", default=False,
+                    help="Export the state-level aggregates in addition to "
+                        "the regional aggregates.")
 
     ############################################################################
     args = parser.parse_args()
+
     args.func(args, parser)
 
 
@@ -125,14 +134,14 @@ def do_featurize(args, parser):
     if args.skip_rbf:
         emb_lin, feature_names = get_embeddings(
             files, stats=stats, chunksize=args.chunksize, skip_rbf=True,
-            skip_feats=args.skip_feats)
+            skip_feats=args.skip_feats, subset=args.subset)
         np.savez(args.outfile, emb_lin=emb_lin,
                  feature_names=feature_names, region_names=region_names)
     else:
         emb_lin, emb_rff, freqs, bandwidth, feature_names = get_embeddings(
             files, stats=stats, n_freqs=args.n_freqs, bandwidth=args.bandwidth,
             skip_feats=args.skip_feats, seed=args.seed,
-            chunksize=args.chunksize)
+            chunksize=args.chunksize, subset=args.subset)
         np.savez(args.outfile,
                  emb_lin=emb_lin, emb_rff=emb_rff,
                  freqs=freqs, bandwidth=bandwidth,
@@ -150,18 +159,31 @@ def do_export(args, parser):
         else:
             args.out_name = rel[:-4] if rel.endswith('.npz') else rel
     out_pattern = os.path.join(args.dir, args.out_name + '_{}.csv')
-
+    feature_names = ''
     with np.load(args.infile) as data:
         path = out_pattern.format('linear')
-        df = pd.DataFrame(data['emb_lin'])
-        df.set_index(data['region_names'], inplace=True)
+        df = pd.DataFrame(data['emb_lin'], index=data['region_names'])
         df.columns = data['feature_names']
+        feature_names = data['feature_names']
         df.to_csv(path, index_label="region")
         print("Linear embeddings saved in {}".format(path))
 
         if 'emb_rff' in data:
             path = out_pattern.format('rff')
-            df = pd.DataFrame(data['emb_rff'])
-            df.set_index(data['region_names'], inplace=True)
+            df = pd.DataFrame(data['emb_rff'], index=data['region_names'])
             df.to_csv(path, index_label="region")
+            print("Fourier embeddings saved in {}".format(path))
+
+    if args.states:
+        data = get_state_embeddings(args.infile)
+        path = out_pattern.format('linear_states')
+        df = pd.DataFrame(data['emb_lin'], index=data['state_names'])
+        df.columns = feature_names
+        df.to_csv(path, index_label="state")
+        print("Linear embeddings saved in {}".format(path))
+
+        if 'emb_rff' in data:
+            path = out_pattern.format('rff_states')
+            df = pd.DataFrame(data['emb_rff'], index=data['state_names'])
+            df.to_csv(path, index_label="state")
             print("Fourier embeddings saved in {}".format(path))
