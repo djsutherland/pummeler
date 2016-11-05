@@ -78,6 +78,13 @@ def main():
                      help='Gaussian kernel bandwidth. Default: choose the '
                           'median distance among the random sample saved in '
                           'the stats file.')
+    g = emb.add_mutually_exclusive_group()
+    g.add_argument('--rff-orthogonal', action='store_true', default=True,
+                   help="Use orthogonality in the random features (which "
+                        "helps the accuracy of the embedding; default).")
+    g.add_argument('--rff-normal', action='store_false', dest='rff_orthogonal',
+                   help="Use standard random Fourier features (no "
+                        "orthogonality).")
     emb.add_argument('--seed', type=int, default=None,
                      help='Random seed for generating random frequencies. '
                           'Default: none')
@@ -132,7 +139,7 @@ def do_featurize(args, parser):
         emb_lin, emb_rff, freqs, bandwidth, feature_names = get_embeddings(
             files, stats=stats, n_freqs=args.n_freqs, bandwidth=args.bandwidth,
             skip_feats=args.skip_feats, seed=args.seed,
-            chunksize=args.chunksize)
+            chunksize=args.chunksize, rff_orthogonal=args.rff_orthogonal)
         np.savez(args.outfile,
                  emb_lin=emb_lin, emb_rff=emb_rff,
                  freqs=freqs, bandwidth=bandwidth,

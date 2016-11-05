@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import pandas as pd
 import progressbar as pb
+from scipy.linalg import qr
 from sklearn.metrics.pairwise import euclidean_distances
 import six
 
@@ -109,17 +110,37 @@ def rff_embedding(feats, wts, freqs, out=None):
 
 
 def pick_rff_freqs(n_freqs, bandwidth, seed=None, n_feats=None,
-                   stats=None, skip_feats=None):
+                   orthogonal=True, stats=None, skip_feats=None):
     '''
     Sets up sampling with random Fourier features corresponding to a Gaussian
     kernel with the given bandwidth, with an embedding dimension of `2*n_freqs`.
 
     Either pass n_feats, or pass stats (and maybe skip_feats) to compute it.
+
+    If orthogonal, uses Orthogonal Random Features:
+      https://arxiv.org/abs/1610.09072
     '''
     if n_feats is None:
         n_feats = _num_feats(stats, skip_feats=skip_feats)
     rs = np.random.mtrand._rand if seed is None else np.random.RandomState(seed)
-    return rs.normal(0, 1 / bandwidth, size=(n_feats, n_freqs))
+
+    if not orthogonal or n_feats == 1:  # ORF doesn't do anything for d=1
+        return rs.normal(0, 1 / bandwidth, size=(n_feats, n_freqs))
+
+    n_reps = int(np.ceil(n_freqs / n_feats))
+    freqs = np.empty((n_feats, n_freqs))
+    for i in range(n_reps):
+        Q, _ = qr(rs.normal(0, 1, size=(n_feats, n_feats)), overwrite_a=True)
+        if i < n_reps - 1:
+            freqs[:, i*n_feats:(i+1)*n_feats] = Q.T
+        else:
+            freqs[:, i*n_feats:] = Q[:n_freqs - i*n_feats].T
+
+    S = rs.chisquare(n_feats, size=n_freqs)
+    np.sqrt(S, out=S)
+    S /= bandwidth
+    freqs *= S[:, np.newaxis]
+    return freqs
 
 
 def pick_gaussian_bandwidth(stats, skip_feats=None):
@@ -136,7 +157,8 @@ def pick_gaussian_bandwidth(stats, skip_feats=None):
 ################################################################################
 
 def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
-                   chunksize=2**13, skip_rbf=False, skip_feats=None, seed=None):
+                   chunksize=2**13, skip_rbf=False, skip_feats=None, seed=None,
+                   rff_orthogonal=True):
     skip_feats = set() if skip_feats is None else set(skip_feats)
     n_feats = _num_feats(stats, skip_feats=skip_feats)
     feat_names = None
@@ -150,7 +172,8 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                         stats, skip_feats=skip_feats)
                 print("picked {}".format(bandwidth), file=sys.stderr)
             freqs = pick_rff_freqs(
-                n_freqs, bandwidth, seed=seed, n_feats=n_feats)
+                n_freqs, bandwidth, seed=seed, n_feats=n_feats,
+                orthogonal=rff_orthogonal)
         else:
             n_freqs = freqs.shape[1]
 
