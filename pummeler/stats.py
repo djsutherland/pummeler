@@ -8,7 +8,7 @@ def save_stats(fn, stats):
         stats['real_stds'].to_hdf(f, 'real_stds')
         for k, v in six.iteritems(stats['value_counts']):
             v.to_hdf(f, 'value_counts/{}'.format(k))
-        for k in ['n_total', 'version']:
+        for k in ['n_total', 'wt_total', 'version']:
             pd.Series([stats[k]]).to_hdf(f, k)
 
 
@@ -18,8 +18,8 @@ def load_stats(fn):
         stats['sample'] = f['sample']
         stats['real_means'] = f['real_means']
         stats['real_stds'] = f['real_stds']
-        stats['n_total'] = f['n_total'].iloc[0]
-        stats['version'] = f['version'].iloc[0]
+        for k in ['n_total', 'wt_total', 'version']:
+            stats[k] = f[k].iloc[0]
 
         stats['value_counts'] = v = {}
         pre = '/value_counts/'

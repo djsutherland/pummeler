@@ -32,6 +32,7 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
     value_counts = {}  # column name => sum of col.value_counts()
 
     n_total = 0
+    wt_total = 0
     not_in_region = Counter()
 
     if isinstance(source, list):
@@ -47,6 +48,8 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
     # features later.
     reservoir = []
 
+    columns = None
+
     for file in files:
         print("File {}".format(file), file=sys.stderr)
         bar = pb.ProgressBar(max_value=pb.UnknownLength)
@@ -59,11 +62,18 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
                                      adj_inc=adj_inc, chunksize=chunksize,
                                      version=version):
                 if not checked_cols:
-                    cols = set(chunk.columns)
-                    assert (cols - all_cols).issubset({'ADJINC', 'ADJINC_orig'})
-                    assert not (all_cols - cols)
+                    if columns is None:
+                        columns = list(chunk.columns)
+                        cols = set(chunk.columns)
+                        assert (cols - all_cols).issubset(
+                            {'ADJINC', 'ADJINC_orig'})
+                        assert not (all_cols - cols)
+                    else:
+                        assert list(chunk.columns) == columns
                     checked_cols = True
                 read += chunk.shape[0]
+
+                wt_total += chunk.PWGTP.sum()
 
                 # components of mean / std for real-valued features
                 reals = chunk[real_feats]
@@ -80,7 +90,7 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
                 # manage reservoir sample
                 rs = np.asarray(
                     np.random.uniform(size=chunk.shape[0]) ** (1 / chunk.PWGTP))
-                for r_tup in zip(rs, chunk.itertuples()):
+                for r_tup in zip(rs, chunk.itertuples(index=False)):
                     # TODO: could speed this up if it's slow, probably
 # maybe there's a weighted version of
 # http://erikerlandson.github.io/blog/2015/11/20/very-fast-reservoir-sampling/
@@ -146,6 +156,7 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
     stats['real_stds'] = real_stds
     stats['value_counts'] = value_counts
     stats['n_total'] = n_total
+    stats['wt_total'] = wt_total
     stats['version'] = version
-    stats['sample'] = pd.DataFrame([t for r, t in reservoir])
+    stats['sample'] = pd.DataFrame([t for r, t in reservoir], columns=columns)
     return stats
