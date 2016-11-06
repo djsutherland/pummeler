@@ -3,8 +3,9 @@ import pandas as pd
 
 weirds = ("indp02 indp07 occp02 occp10 OCCP10 OCCP12 "
           "socp00 socp10 naicsp02 naicsp07".split())
-adj_cols = "INTP OIP PAP PERNP PINCP RETP SEMP SSIP SSP WAGP".split()
-def read_chunks(fname, chunksize=10**5, voters_only=False, adj_inc=None):
+def read_chunks(fname, version, chunksize=10**5, voters_only=False,
+                adj_inc=None):
+    info = VERSIONS[version]
     chunks = pd.read_csv(
         fname,
         skipinitialspace=True,
@@ -28,7 +29,7 @@ def read_chunks(fname, chunksize=10**5, voters_only=False, adj_inc=None):
 
         if adj_inc:
             adj = chunk.ADJINC / 1e6
-            for k in adj_cols:
+            for k in info['to_adjinc']:
                 chunk[k] *= adj
             chunk['ADJINC_orig'] = chunk.ADJINC
             del chunk['ADJINC']
@@ -57,9 +58,39 @@ VERSIONS = {
                           FWKWP FYOEP'''.split(),
         'real_feats': '''AGEP INTP JWMNP OIP PAP RETP SEMP SSIP SSP WAGP WKHP
                          YOEP JWAP JWDP PERNP PINCP POVPIP RACNUM'''.split(),
+        'to_adjinc': '''INTP OIP PAP PERNP PINCP RETP SEMP SSIP
+                        SSP WAGP'''.split(),
         'region_year': '00',
+    },
+    '2015': {
+        'weight_cols': ['PWGTP'] + ['pwgtp{}'.format(i) for i in range(1, 81)],
+        'meta_cols': "RT SPORDER SERIALNO PUMA ST".split(),
+        'alloc_flags': '''FAGEP FANCP FCITP FCITWP FCOWP FDDRSP FDEARP FDEYEP
+                          FDISP FDOUTP FDPHYP FDRATP FDRATXP FDREMP FENGP FESRP
+                          FFERP FFODP FGCLP FGCMP FGCRP FHINS1P FHINS2P FHINS3C
+                          FHINS3P FHINS4C FHINS4P FHINS5C FHINS5P FHINS6P
+                          FHINS7P FHISP FINDP FINTP FJWDP FJWMNP FJWRIP FJWTRP
+                          FLANP FLANXP FMARHDP FMARHMP FMARHTP FMARHWP FMARHYP
+                          FMARP FMIGP FMIGSP FMILPP FMILSP FOCCP FOIP FPAP
+                          FPERNP FPINCP FPOBP FPOWSP FPRIVCOVP FPUBCOVP FRACP
+                          FRELP FRETP FSCHGP FSCHLP FSCHP FSEMP FSEXP FSSIP
+                          FSSP FWAGP FWKHP FWKLP FWKWP FWRKP FYOEP'''.split(),
+        'discrete_feats': '''CIT COW DDRS DEAR DEYE DOUT DPHY DRAT DRATX
+                             DREM ENG FER GCL GCM GCR HINS1 HINS2 HINS3 HINS4
+                             HINS5 HINS6 HINS7 JWRIP JWTR LANX MAR MARHD MARHM
+                             MARHT MARHW MARHYP MIG MIL MLPA MLPB MLPCD MLPE
+                             MLPFG MLPH MLPI MLPJ MLPK NWAB NWAV NWLA NWLK NWRE
+                             RELP SCH SCHG SCHL SEX WKHP WKL WKW WRK ANC ANC1P
+                             ANC2P DECADE DIS DRIVESP ESP ESR FHICOVP FOD1P
+                             FOD2P HICOV HISP INDP LANP MIGPUMA MIGSP MSP
+                             NAICSP NATIVITY NOP OC OCCP PAOC POBP POWPUMA
+                             POWSP PRIVCOV PUBCOV QTRBIR RAC1P RAC2P RAC3P
+                             RACAIAN RACASN RACBLK RACNH RACPI RACSOR RACWHT RC
+                             SCIENGP SCIENGRLP SFN SFR SOCP VPS WAOB'''.split(),
+        'real_feats': '''AGEP CITWP INTP JWMNP OIP PAP RETP SEMP SSIP SSP WAGP
+                         WKHP YOEP JWAP JWDP PERNP PINCP POVPIP
+                         RACNUM'''.split(),
+        'to_adjinc': 'INTP OIP PAP PERNP PINCP RETP SEMP SSIP SSP WAGP'.split(),
+        'region_year': '10',
     }
 }
-
-# feat_cols = set(discrete_feats) | set(alloc_flags) | set(real_feats)
-# all_cols = set(meta_cols) | feat_cols

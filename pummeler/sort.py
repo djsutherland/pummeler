@@ -56,7 +56,8 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
         checked_cols = False
         with opener(file, 'r') as f:
             for chunk in read_chunks(f, voters_only=voters_only,
-                                     adj_inc=adj_inc, chunksize=chunksize):
+                                     adj_inc=adj_inc, chunksize=chunksize,
+                                     version=version):
                 if not checked_cols:
                     cols = set(chunk.columns)
                     assert (cols - all_cols).issubset({'ADJINC', 'ADJINC_orig'})
