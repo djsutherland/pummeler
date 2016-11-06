@@ -139,7 +139,7 @@ def pick_rff_freqs(n_freqs, bandwidth, seed=None, n_feats=None,
     S = rs.chisquare(n_feats, size=n_freqs)
     np.sqrt(S, out=S)
     S /= bandwidth
-    freqs *= S[:, np.newaxis]
+    freqs *= S[np.newaxis, :]
     return freqs
 
 
