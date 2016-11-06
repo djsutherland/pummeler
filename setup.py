@@ -27,6 +27,7 @@ setup(
         'pandas',
         'progressbar2',
         'pytables',
+        'scipy',
         'six',
         'sklearn',
     ],
