@@ -28,8 +28,11 @@ def centroids_cartesian(year='00'):
     return pd.DataFrame(dict(x=x, y=y, z=z))
 
 
-def election_data():
-    p = '2012-by-region.csv.gz'
+def election_data(regions='00'):
+    if regions == '00':
+        p = '2012-by-region.csv.gz'
+    else:
+        p = '2012-by-region-puma10s.csv.gz'
     try:
         from pkg_resources import resource_stream
         f = resource_stream('pummeler', 'data/' + p)
