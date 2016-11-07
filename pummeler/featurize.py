@@ -185,6 +185,8 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
     if subsets is None:
         subsets = 'PWGTP > 0'
     n_subsets = subsets.count(',') + 1
+    if n_subsets == 1:
+        subsets += ','  # make sure eval returns a matrix
     # This should work for anything we want, I think
 
     emb_lin = np.empty((len(files), n_feats, n_subsets))
