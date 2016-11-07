@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from .featurize import get_embeddings
+from .misc import get_state_embeddings
 from .reader import VERSIONS
 from .stats import load_stats, save_stats
 from .sort import sort_by_region
@@ -113,6 +114,17 @@ def main():
                          "otherwise 'embeddings'.")
 
     ############################################################################
+    states = subparsers.add_parser(
+        'state-features', help="Get state embeddings from existing embeddings.")
+    states.set_defaults(func=do_states)
+
+    io = states.add_argument_group('Input/output options')
+    io.add_argument('infile', help="The existing region embeddings.")
+    io.add_argument('outfile', default=None, nargs='?',
+                    help="Where to output; default adds _states to the "
+                         "input file name.")
+
+    ############################################################################
     weight_counts = subparsers.add_parser(
         'weight-counts', help="Export total weight per region (approximately "
                               "the number of eligible voters) as a CSV.")
@@ -191,6 +203,16 @@ def do_export(args, parser):
             df.set_index(data['region_names'], inplace=True)
             df.to_csv(path, index_label="region")
             print("Fourier embeddings saved in {}".format(path))
+
+
+def do_states(args, parser):
+    if args.outfile is None:
+        inf = args.infile
+        if args.infile.endswith('.npz'):
+            inf = args.infile[:-4]
+        args.outfile = inf + '_states.npz'
+
+    np.savez(args.outfile, get_state_embeddings(args.infile))
 
 
 def do_weight_counts(args, parser):
