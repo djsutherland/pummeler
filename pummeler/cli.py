@@ -3,6 +3,7 @@ import argparse
 from glob import glob
 import os
 
+import h5py
 import numpy as np
 import pandas as pd
 
@@ -112,6 +113,17 @@ def main():
                          "otherwise 'embeddings'.")
 
     ############################################################################
+    weight_counts = subparsers.add_parser(
+        'weight-counts', help="Export total weight per region (approximately "
+                              "the number of eligible voters) as a CSV.")
+    weight_counts.set_defaults(func=do_weight_counts)
+
+    io = weight_counts.add_argument_group('Input/output options')
+    io.add_argument('dir', help="Where the feature files live.")
+    io.add_argument('outfile', default=None, nargs='?',
+                    help="Where to output; default DIR/weight_counts.csv.")
+
+    ############################################################################
     args = parser.parse_args()
     args.func(args, parser)
 
@@ -179,3 +191,20 @@ def do_export(args, parser):
             df.set_index(data['region_names'], inplace=True)
             df.to_csv(path, index_label="region")
             print("Fourier embeddings saved in {}".format(path))
+
+
+def do_weight_counts(args, parser):
+    if args.outfile is None:
+        args.outfile = os.path.join(args.dir, 'weight_counts.csv')
+
+    mapping = {}
+    for fn in os.listdir(args.dir):
+        if fn.startswith('feats_') and fn.endswith('.h5'):
+            region = fn[len('feats_'):-len('.h5')]
+            with h5py.File(os.path.join(args.dir, fn), 'r') as f:
+                mapping[region] = f['total_wt'][()]
+
+    df = pd.DataFrame.from_dict(mapping, orient='index')
+    df.columns = ['total_wt']
+    df.index.names = ['region']
+    df.to_csv(args.outfile)
