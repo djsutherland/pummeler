@@ -192,6 +192,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
     emb_lin = np.empty((len(files), n_feats, n_subsets))
     if not skip_rbf:
         emb_rff = np.empty((len(files), 2 * n_freqs, n_subsets))
+    region_weights = np.empty((len(files), n_subsets))
 
     bar = pb.ProgressBar(max_value=stats['n_total'])
     bar.start()
@@ -255,14 +256,17 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
             emb_rff[file_idx] = 0
             for ws, r in zip(weights, rff_emb_pieces):
                 emb_rff[file_idx] += r * (ws / total_weights)
+
+        region_weights[file_idx] = total_weights
     bar.finish()
 
     if squeeze_queries and n_subsets == 1:
         emb_lin = emb_lin[:, :, 0]
         if not skip_rbf:
             emb_rff = emb_rff[:, :, 0]
+        region_weights = region_weights[:, 0]
 
     if skip_rbf:
-        return emb_lin, feat_names
+        return emb_lin, region_weights, feat_names
     else:
-        return emb_lin, emb_rff, freqs, bandwidth, feat_names
+        return emb_lin, emb_rff, region_weights, freqs, bandwidth, feat_names
