@@ -86,7 +86,9 @@ def linear_embedding(feats, wts, out=None):
     if out is None:
         out = np.empty((feats.shape[1], wts.shape[0]))
     np.dot(feats.T, wts.T, out=out)
-    out /= wts.sum(axis=1)[np.newaxis, :]
+    w = wts.sum(axis=1)
+    nz = w != 0
+    out[:, nz] /= w[np.newaxis, nz]
     return out
 
 
@@ -105,7 +107,9 @@ def rff_embedding(feats, wts, freqs, out=None):
 
     np.dot(sin_angles.T, wts.T, out=out[:D])
     np.dot(cos_angles.T, wts.T, out=out[D:])
-    out /= wts.sum(axis=1)[np.newaxis, :]
+    w = wts.sum(axis=1)
+    nz = w != 0
+    out[:, nz] /= w[np.newaxis, nz]
     return out
 
 
