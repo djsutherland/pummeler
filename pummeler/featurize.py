@@ -84,9 +84,9 @@ def linear_embedding(feats, wts, out=None):
     dummy features `feats`, with sample weighting `wts`.
     '''
     if out is None:
-        out = np.empty(feats.shape[1])
-    np.dot(wts, feats, out=out)
-    out /= wts.sum()
+        out = np.empty((feats.shape[1], wts.shape[0]))
+    np.dot(feats.T, wts.T, out=out)
+    out /= wts.sum(axis=1)[np.newaxis, :]
     return out
 
 
@@ -97,15 +97,15 @@ def rff_embedding(feats, wts, freqs, out=None):
     '''
     D = freqs.shape[1]
     if out is None:
-        out = np.empty(2 * D)
+        out = np.empty((2 * D, wts.shape[0]))
 
     angles = np.dot(feats, freqs)
     sin_angles = np.sin(angles)  # TODO: could use MKL sincos for this
     cos_angles = np.cos(angles, out=angles)
 
-    np.dot(wts, sin_angles, out=out[:D])
-    np.dot(wts, cos_angles, out=out[D:])
-    out /= wts.sum()
+    np.dot(sin_angles.T, wts.T, out=out[:D])
+    np.dot(cos_angles.T, wts.T, out=out[D:])
+    out /= wts.sum(axis=1)[np.newaxis, :]
     return out
 
 
@@ -158,7 +158,8 @@ def pick_gaussian_bandwidth(stats, skip_feats=None):
 
 def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                    chunksize=2**13, skip_rbf=False, skip_feats=None, seed=None,
-                   rff_orthogonal=True):
+                   rff_orthogonal=True, subsets=None,
+                   squeeze_queries=True):
     skip_feats = set() if skip_feats is None else set(skip_feats)
     n_feats = _num_feats(stats, skip_feats=skip_feats)
     feat_names = None
@@ -177,21 +178,36 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
         else:
             n_freqs = freqs.shape[1]
 
-    emb_lin = np.empty((len(files), n_feats))
+    if subsets is None:
+        subsets = 'PWGTP > 0'
+    n_subsets = subsets.count(',') + 1
+    # This should work for anything we want, I think
+
+    emb_lin = np.empty((len(files), n_feats, n_subsets))
     if not skip_rbf:
-        emb_rff = np.empty((len(files), 2 * n_freqs))
+        emb_rff = np.empty((len(files), 2 * n_freqs, n_subsets))
 
     bar = pb.ProgressBar(max_value=stats['n_total'])
     bar.start()
     read = 0
     dummies = np.empty((chunksize, n_feats))
-    for i, file in enumerate(files):
+    for i, file in enumerate(files[:3]):
         lin_emb_pieces = []
         if not skip_rbf:
             rff_emb_pieces = []
         weights = []
-        total_weight = 0
+        total_weights = 0
         for c in pd.read_hdf(file, chunksize=chunksize):
+            read += c.shape[0]
+            bar.update(read)
+
+            which = c.eval(subsets).astype(bool)
+            keep = which.any(axis=0)
+            c = c.loc[keep]
+            which = which[:, keep]
+            if not c.shape[0]:
+                continue
+
             feats = dummies[:c.shape[0], :]
 
             if feat_names is None:
@@ -202,25 +218,32 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                 get_dummies(c, stats, num_feats=n_feats,
                             skip_feats=skip_feats, ret_df=False, out=feats)
 
-            lin_emb_pieces.append(linear_embedding(feats, c.PWGTP))
-            if not skip_rbf:
-                rff_emb_pieces.append(rff_embedding(feats, c.PWGTP, freqs))
-            w = c.PWGTP.sum()
-            weights.append(w)
-            total_weight += w
+            wts = np.tile(c.PWGTP, (n_subsets, 1))
+            for i, w in enumerate(which):
+                wts[i, ~w] = 0
 
-            read += c.shape[0]
-            bar.update(read)
+            lin_emb_pieces.append(linear_embedding(feats, wts))
+            if not skip_rbf:
+                rff_emb_pieces.append(rff_embedding(feats, wts, freqs))
+
+            ws = wts.sum(axis=1)
+            weights.append(ws)
+            total_weights += ws
 
         emb_lin[i] = 0
-        for w, l in zip(weights, lin_emb_pieces):
-            emb_lin[i] += l * (w / total_weight)
+        for ws, l in zip(weights, lin_emb_pieces):
+            emb_lin[i] += l * (ws / total_weights)
 
         if not skip_rbf:
             emb_rff[i] = 0
-            for w, r in zip(weights, rff_emb_pieces):
-                emb_rff[i] += r * (w / total_weight)
+            for ws, r in zip(weights, rff_emb_pieces):
+                emb_rff[i] += r * (ws / total_weights)
     bar.finish()
+
+    if squeeze_queries and n_subsets == 1:
+        emb_lin = emb_lin[:, :, 0]
+        if not skip_rbf:
+            emb_rff = emb_rff[:, :, 0]
 
     if skip_rbf:
         return emb_lin, feat_names

@@ -90,6 +90,10 @@ def main():
                           'Default: none')
     emb.add_argument('--skip-feats', nargs='+', metavar='FEAT_NAME',
                      help="Don't include some features in the embedding.")
+    emb.add_argument('--subsets', metavar='PANDAS_QUERY',
+                     help="Comma-separated subsets of the data to calculate "
+                          "embeddings for, e.g. "
+                          "'SEX == 2 & AGEP > 45, SEX == 2 & PINCP < 20000'.")
 
     ############################################################################
     export = subparsers.add_parser(
@@ -132,18 +136,21 @@ def do_featurize(args, parser):
     if args.skip_rbf:
         emb_lin, feature_names = get_embeddings(
             files, stats=stats, chunksize=args.chunksize, skip_rbf=True,
-            skip_feats=args.skip_feats)
+            skip_feats=args.skip_feats, subsets=args.subsets)
         np.savez(args.outfile, emb_lin=emb_lin,
-                 feature_names=feature_names, region_names=region_names)
+                 feature_names=feature_names, region_names=region_names,
+                 subset_queries=args.subsets)
     else:
         emb_lin, emb_rff, freqs, bandwidth, feature_names = get_embeddings(
             files, stats=stats, n_freqs=args.n_freqs, bandwidth=args.bandwidth,
             skip_feats=args.skip_feats, seed=args.seed,
-            chunksize=args.chunksize, rff_orthogonal=args.rff_orthogonal)
+            chunksize=args.chunksize, rff_orthogonal=args.rff_orthogonal,
+            subsets=args.subsets)
         np.savez(args.outfile,
                  emb_lin=emb_lin, emb_rff=emb_rff,
                  freqs=freqs, bandwidth=bandwidth,
-                 feature_names=feature_names, region_names=region_names)
+                 feature_names=feature_names, region_names=region_names,
+                 subset_queries=args.subsets)
 
 
 def do_export(args, parser):
