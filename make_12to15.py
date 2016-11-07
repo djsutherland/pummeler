@@ -39,11 +39,14 @@ def merge_12to14_15(dir_12to14, dir_15, out_dir):
     stats['n_total'] = n_a + n_b
 
     wt_a = stats_a['wt_total']
-    wt_b = stats_a['wt_total']
+    wt_b = stats_b['wt_total']
 
-    # want to adjust weights of a so that wt_a / n_a == wt_b / n_b
-    weight_mult = (wt_b / n_b) / (wt_a / n_a)
-    stats['wt_total'] = weight_mult * wt_a + wt_b
+    # apparently multiplying by weights gives whole-pop estimates
+    # with --all-people, mean weight is 20 in the 5% sample and 100 in the 1%...
+    # so since we're making a 4% sample, want mean weight to be 25
+    weight_mult_a = 25 / 20
+    weight_mult_b = 25 / 100
+    stats['wt_total'] = weight_mult_a * wt_a + weight_mult_b * wt_b
 
     Ex_a = stats_a['real_means']
     Ex_a[to_adjinc] *= adjinc
@@ -70,12 +73,13 @@ def merge_12to14_15(dir_12to14, dir_15, out_dir):
 
     def _change_a(feats_a):
         feats_a[to_adjinc] *= adjinc
-        feats_a.PWGTP *= weight_mult
+        feats_a.PWGTP *= weight_mult_a
 
     def _change_b(feats_b):
         feats_b['RACNHPI'] = feats_b['RACNH'] | feats_b['RACPI']
         feats_b['RACNHPI'].name = 'RACNHPI'
         feats_b.drop(['RACNH', 'RACPI'] + flags_to_drop, axis=1, inplace=True)
+        feats_b.PWGTP *= weight_mult_b
 
     _change_a(stats_a['sample'])
     _change_b(stats_b['sample'])
