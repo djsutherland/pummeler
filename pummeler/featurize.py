@@ -201,7 +201,17 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
             read += c.shape[0]
             bar.update(read)
 
+            hacked = False
+            if c.shape[0] == 1:
+                # gross pandas bug in this case
+                c = pd.concat([c, c])
+                hacked = True
+
             which = c.eval(subsets).astype(bool)
+            if hacked:
+                c = c.iloc[:1]
+                which = which[:, :1]
+
             keep = which.any(axis=0)
             c = c.loc[keep]
             which = which[:, keep]
