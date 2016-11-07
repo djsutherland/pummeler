@@ -191,7 +191,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
     bar.start()
     read = 0
     dummies = np.empty((chunksize, n_feats))
-    for i, file in enumerate(files[:3]):
+    for i, file in enumerate(files):
         lin_emb_pieces = []
         if not skip_rbf:
             rff_emb_pieces = []
