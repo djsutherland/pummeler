@@ -3,6 +3,7 @@ from __future__ import division
 from glob import glob
 import os
 
+import h5py
 import numpy as np
 import pandas as pd
 import progressbar as pb
@@ -103,6 +104,9 @@ def merge_12to14_15(dir_12to14, dir_15, out_dir):
         pd.concat([a, b]).to_hdf(
             os.path.join(out_dir, bn), 'df', format='table',
             mode='w', complib='blosc', complevel=6)
+
+        with h5py.File(os.path.join(out_dir, bn)) as f:
+            f['total_wt'] = a.PWGTP.sum() + b.PWGTP.sum()
 
 
 def main():
