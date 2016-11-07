@@ -191,7 +191,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
     bar.start()
     read = 0
     dummies = np.empty((chunksize, n_feats))
-    for i, file in enumerate(files[:3]):
+    for file_idx, file in enumerate(files):
         lin_emb_pieces = []
         if not skip_rbf:
             rff_emb_pieces = []
@@ -218,6 +218,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
             if not c.shape[0]:
                 continue
 
+
             feats = dummies[:c.shape[0], :]
 
             if feat_names is None:
@@ -240,14 +241,14 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
             weights.append(ws)
             total_weights += ws
 
-        emb_lin[i] = 0
+        emb_lin[file_idx] = 0
         for ws, l in zip(weights, lin_emb_pieces):
-            emb_lin[i] += l * (ws / total_weights)
+            emb_lin[file_idx] += l * (ws / total_weights)
 
         if not skip_rbf:
-            emb_rff[i] = 0
+            emb_rff[file_idx] = 0
             for ws, r in zip(weights, rff_emb_pieces):
-                emb_rff[i] += r * (ws / total_weights)
+                emb_rff[file_idx] += r * (ws / total_weights)
     bar.finish()
 
     if squeeze_queries and n_subsets == 1:
