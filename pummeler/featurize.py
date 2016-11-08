@@ -493,12 +493,22 @@ def _my_proc_setup(stats):
     vc['FOD1P'] = vc['FOD1P'].groupby(fod_cats).sum()
     vc['HASDEGREE'] = vc['SCHL'].groupby(lambda x: int(x >= 20)).sum()
     vc['ANYHISP'] = vc['HISP'].groupby(lambda x: int(x == 1)).sum()
+    vc['ETHNICITY'] = pd.Series(
+        [stats['n_total'] - 5] + [1] * 5,
+        index=['hispanic', 'white', 'black', 'amerindian', 'asian',
+               'other/biracial'])
+    # obviously the value counts are a lie, but we don't actually use them
 
     _my_proc_chunk(stats['sample'])
 
-    stats['_added_discrete'] = {'ANYHISP', 'HASDEGREE'}
+    stats['_added_discrete'] = {'ANYHISP', 'HASDEGREE', 'ETHNICITY'}
     return skip_feats
 
+
+_ethnicity_map = {
+        1: 'white', 2: 'black', 3: 'amerindian', 4: 'amerindian',
+        5: 'amerindian', 6: 'asian', 7: 'amerindian', 8: 'other/biracial',
+        9: 'other/biracial', 'hispanic': 'hispanic'}
 
 def _my_proc_chunk(df, skip_feats=set()):
     # get NAICS category
@@ -522,6 +532,12 @@ def _my_proc_chunk(df, skip_feats=set()):
     if 'HASDEGREE' not in skip_feats:
         df['HASDEGREE'] = (df.SCHL >= 20).astype(int)
 
+    if 'ETHNICITY' not in skip_feats:
+        # ETHNICITY is a recode
+        df['ETHNICITY'] = df.RAC1P.where(df.HISP == 1,
+                                         'hispanic').map(_ethnicity_map)
+
+
 # Other changes that need to be done in sort (:|):
 # income recoding (log-scale, percentages for categories?)
 # povpip recoding (0-500 can be real, but 501 needs to be discrete)
@@ -540,7 +556,7 @@ def my_additive_setup(stats, skip_feats, seed):
     m.one_n_freqs = 128
     m.pair_n_freqs = 256
     #   Interaction features between all pairs of those and
-    m.discretes = ["SEX", "RAC1P", "ANYHISP", "HASDEGREE"]
+    m.discretes = ["SEX", "ETHNICITY", "HASDEGREE"]
 
     for d in m.discretes:
         assert d not in skip_feats
