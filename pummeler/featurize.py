@@ -1,4 +1,6 @@
 from __future__ import division, print_function
+from collections import defaultdict
+import itertools
 import sys
 
 import numpy as np
@@ -7,9 +9,20 @@ import progressbar as pb
 from scipy.linalg import qr
 from sklearn.metrics.pairwise import euclidean_distances
 import six
+from six.moves import xrange
 
 from .data import fod_codes
 from .reader import VERSIONS
+
+
+_cache_needs_nan = {}
+def _needs_nan(c, stats):
+    try:
+        return _cache_needs_nan[c]
+    except KeyError:
+        vc_sum = stats['value_counts'][c].sum()
+        _cache_needs_nan[c] = b = vc_sum < stats['n_total']
+        return b
 
 
 def get_dummies(df, stats, num_feats=None, ret_df=True, skip_feats=None,
@@ -43,18 +56,17 @@ def get_dummies(df, stats, num_feats=None, ret_df=True, skip_feats=None,
     for k, vc in six.iteritems(stats['value_counts']):
         if k in skip_feats:
             continue
-        c = pd.Categorical(df[k], categories=vc.index).codes
-        n_codes = len(vc)
+
+        needs_nan = _needs_nan(k, stats)
+        n_codes = len(vc) + int(needs_nan)
+        _get_dummies(df[k], vc, with_nan=needs_nan,
+                     out=out[:, start_col:start_col+n_codes])
+
         if ret_df:
             feat_names += ['{}_{}'.format(k, v) for v in vc.index]
-        if vc.sum() < stats['n_total']:
-            c = c.copy()
-            c[c == -1] = n_codes
-            n_codes += 1
-            if ret_df:
+            if needs_nan:
                 feat_names.append('{}_nan'.format(k))
-        bit = out[:, start_col:start_col + n_codes]
-        np.eye(n_codes).take(c, axis=0, out=bit)
+
         start_col += n_codes
     assert start_col == num_feats
 
@@ -62,6 +74,19 @@ def get_dummies(df, stats, num_feats=None, ret_df=True, skip_feats=None,
         return pd.DataFrame(out, index=df.index, columns=feat_names)
     else:
         return out
+
+def _get_dummies(col, vc, with_nan, out=None, dtype=np.float64):
+    c = pd.Categorical(col, categories=vc.index).codes
+    n_codes = len(vc)
+    if with_nan:
+        c = c.copy()
+        c[c == -1] = n_codes
+        n_codes += 1
+
+    if out is None:
+        out = np.empty((col.shape[0], n_codes), dtype=dtype)
+    np.eye(n_codes).take(c, axis=0, out=out)
+    return out
 
 
 def _num_feats(stats, skip_feats=None):
@@ -152,8 +177,11 @@ def pick_gaussian_bandwidth(stats, skip_feats=None):
     Finds the median distance between features from the random sample saved
     in stats.
     '''
-    samp = get_dummies(
-        stats['sample'], stats, ret_df=False, skip_feats=skip_feats)
+    return _get_median(get_dummies(
+        stats['sample'], stats, ret_df=False, skip_feats=skip_feats))
+
+
+def _get_median(samp):
     D2 = euclidean_distances(samp, squared=True)
     return np.sqrt(np.median(D2[np.triu_indices_from(D2, k=1)]))
 
@@ -164,12 +192,17 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                    chunksize=2**13, skip_rbf=False, skip_feats=None, seed=None,
                    rff_orthogonal=True, subsets=None,
                    squeeze_queries=True, skip_alloc_flags=True,
-                   do_my_proc=False):
+                   do_my_proc=False, do_my_additive=False):
     skip_feats = set() if skip_feats is None else set(skip_feats)
     if skip_alloc_flags:
         skip_feats.update(VERSIONS[stats['version']]['alloc_flags'])
-    if do_my_proc:
+
+    if do_my_proc or do_my_additive:
         skip_feats.update(_my_proc_setup(stats))
+
+    if do_my_additive:
+        do_my_proc = True
+        m = my_additive_setup(stats, skip_feats, seed)
 
     n_feats = _num_feats(stats, skip_feats=skip_feats)
     feat_names = None
@@ -188,6 +221,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
         else:
             n_freqs = freqs.shape[1]
 
+
     if subsets is None:
         subsets = 'PWGTP > 0'
     n_subsets = subsets.rstrip()[:-1].count(',') + 1  # allow trailing comma
@@ -198,6 +232,8 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
     emb_lin = np.empty((len(files), n_feats, n_subsets))
     if not skip_rbf:
         emb_rff = np.empty((len(files), 2 * n_freqs, n_subsets))
+    if do_my_additive:
+        emb_extra = np.empty((len(files), m.n_extra, n_subsets))
     region_weights = np.empty((len(files), n_subsets))
 
     bar = pb.ProgressBar(max_value=stats['n_total'])
@@ -205,9 +241,11 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
     read = 0
     dummies = np.empty((chunksize, n_feats))
     for file_idx, file in enumerate(files):
-        lin_emb_pieces = []
+        emb_lin_pieces = []
         if not skip_rbf:
-            rff_emb_pieces = []
+            emb_rff_pieces = []
+        if do_my_additive:
+            emb_extra_pieces = []
         weights = []
         total_weights = 0
         for c in pd.read_hdf(file, chunksize=chunksize):
@@ -241,14 +279,21 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                              ret_df=feat_names is None, out=feats)
             if feat_names is None:
                 feat_names = list(df.columns)
+                feat_locs = defaultdict(list)
+                for i, s in enumerate(feat_names):
+                    var = s.split('_', 1)[0]
+                    feat_locs[var].append(i)
 
             wts = np.tile(c.PWGTP, (n_subsets, 1))
             for i, w in enumerate(which):
                 wts[i, ~w] = 0
 
-            lin_emb_pieces.append(linear_embedding(feats, wts))
+            emb_lin_pieces.append(linear_embedding(feats, wts))
             if not skip_rbf:
-                rff_emb_pieces.append(rff_embedding(feats, wts, freqs))
+                emb_rff_pieces.append(rff_embedding(feats, wts, freqs))
+
+            if do_my_additive:
+                emb_extra_pieces.append(my_additive_extras(feats, wts, m, feat_locs))
 
             ws = wts.sum(axis=1)
             weights.append(ws)
@@ -262,13 +307,18 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
             ratios.append(ratio)
 
         emb_lin[file_idx] = 0
-        for rs, l in zip(ratios, lin_emb_pieces):
+        for rs, l in zip(ratios, emb_lin_pieces):
             emb_lin[file_idx] += l * rs
 
         if not skip_rbf:
             emb_rff[file_idx] = 0
-            for rs, r in zip(ratios, rff_emb_pieces):
+            for rs, r in zip(ratios, emb_rff_pieces):
                 emb_rff[file_idx] += r * rs
+
+        if do_my_additive:
+            emb_extra[file_idx] = 0
+            for rs, p in zip(ratios, emb_extra_pieces):
+                emb_extra[file_idx] += p * rs
 
         region_weights[file_idx] = total_weights
     bar.finish()
@@ -277,6 +327,8 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
         emb_lin = emb_lin[:, :, 0]
         if not skip_rbf:
             emb_rff = emb_rff[:, :, 0]
+        if do_my_additive:
+            emb_extra = emb_extra[:, :, 0]
         region_weights = region_weights[:, 0]
 
     if skip_rbf:
@@ -439,13 +491,12 @@ def _my_proc_setup(stats):
     vc['NAICSP'] = vc['NAICSP'].groupby(naics_cat).sum()
     vc['OCCP'] = vc['OCCP'].groupby(occ_cat).sum()
     vc['FOD1P'] = vc['FOD1P'].groupby(fod_cats).sum()
-    vc['ANYHISP'] = pd.Series(
-        [vc['HISP'].loc[1], vc['HISP'].loc[2:].sum()],
-        index=[0, 1], name='ANYHISP')
+    vc['HASDEGREE'] = vc['SCHL'].groupby(lambda x: int(x >= 20)).sum()
+    vc['ANYHISP'] = vc['HISP'].groupby(lambda x: int(x == 1)).sum()
 
     _my_proc_chunk(stats['sample'])
 
-    stats['_added_discrete'] = {'ANYHISP'}
+    stats['_added_discrete'] = {'ANYHISP', 'HASDEGREE'}
     return skip_feats
 
 
@@ -467,8 +518,147 @@ def _my_proc_chunk(df, skip_feats=set()):
         df['FOD2P'] = df.FOD2P.map(fod_cats, na_action='ignore')
 
     if 'ANYHISP' not in skip_feats:
-        df['ANYHISP'] = df.HISP > 1
+        df['ANYHISP'] = (df.HISP > 1).astype(int)
+    if 'HASDEGREE' not in skip_feats:
+        df['HASDEGREE'] = (df.SCHL >= 20).astype(int)
 
 # Other changes that need to be done in sort (:|):
 # income recoding (log-scale, percentages for categories?)
 # povpip recoding (0-500 can be real, but 501 needs to be discrete)
+
+
+def my_additive_setup(stats, skip_feats, seed):
+    class Model(object):
+        pass
+    m = Model()
+    m.stats = stats
+
+    # We're doing:
+    #   Mean (linear) features for everything.
+    #   Additional RFF features for:
+    m.rff_reals = ['AGEP', 'PINCP', 'WKHP']
+    m.one_n_freqs = 128
+    m.pair_n_freqs = 256
+    #   Interaction features between all pairs of those and
+    m.discretes = ["SEX", "RAC1P", "ANYHISP", "HASDEGREE"]
+
+    for d in m.discretes:
+        assert d not in skip_feats
+
+    m.rff_pairs = list(itertools.combinations(m.rff_reals, 2))
+    m.rff_discrete_pairs = [
+        (r, d) for r in m.rff_reals for d in m.discretes]
+    m.discrete_pairs = list(itertools.combinations(m.discretes, 2))
+
+    vcs = stats['value_counts']
+    _levels = {}
+    def levels(d):
+        if d not in _levels:
+            _levels[d] = l = ['{}'.format(v) for v in vcs[d].index]
+            if _needs_nan(d, stats):
+                l.append('nan')
+        return _levels[d]
+
+    m.extra_names = (
+        ['{}_{}{}'.format(r, sc, i)
+         for r in m.rff_reals
+         for sc in ['sin', 'cos']
+         for i in xrange(m.one_n_freqs)] +
+        ['{}_{}_{}{}'.format(d1, d2, sc, i)
+         for d1, d2 in m.rff_pairs
+         for sc in ['sin', 'cos']
+         for i in xrange(m.pair_n_freqs)] +
+        ['{}_{}_{}_{}{}'.format(d, r, v, sc, i)
+         for r, d in m.rff_discrete_pairs
+         for sc in ['sin', 'cos']
+         for i in xrange(m.one_n_freqs)
+         for v in levels(d)] +
+        ['{}_{}_{}_{}'.format(d1, d2, v1, v2)
+         for d1, d2 in m.discrete_pairs
+         for v1 in levels(d1)
+         for v2 in levels(d2)
+        ]
+    )
+    m.n_extra = len(m.extra_names)
+
+    samp = np.array(stats['sample'][m.rff_reals], copy=True)
+    samp -= stats['real_means'][m.rff_reals]
+    samp /= stats['real_stds'][m.rff_reals]
+    samp[np.isnan(samp)] = 0
+
+    m.one_bws = [
+        _get_median(samp[:, [i]]) for i in range(len(m.rff_reals))]
+    m.pair_bws = [
+        _get_median(samp[:, [i, j]])
+        for i, j in itertools.combinations(range(len(m.rff_reals)), 2)]
+
+    rs = (np.random.mtrand._rand if seed is None
+          else np.random.RandomState(seed + 1))
+    m.one_freqs = [
+        pick_rff_freqs(m.one_n_freqs, bandwidth=bw, n_feats=1,
+                       seed=rs.randint(2**23))
+        for bw in m.one_bws]
+    m.one_freqs_d = {n: f for n, f in zip(m.rff_reals, m.one_freqs)}
+    m.pair_freqs = [
+        pick_rff_freqs(m.pair_n_freqs, bandwidth=bw, n_feats=2,
+                       seed=rs.randint(2**23))
+        for bw in m.pair_bws]
+
+    return m
+
+
+def my_additive_extras(feats, wts, m, feat_locs, out=None):
+    pos = 0
+    n_subs, n = wts.shape
+
+    if out is None:
+        out = np.empty((m.n_extra, n_subs))
+
+    # real-only features
+    step = 2 * m.one_n_freqs
+    for f, freqs in zip(m.rff_reals, m.one_freqs):
+        rff_embedding(feats[:, feat_locs[f]], wts, freqs, out=out[pos:pos+step])
+        pos += step
+
+    # real pair features
+    step = 2 * m.pair_n_freqs
+    for (f1, f2), freqs in zip(m.rff_pairs, m.pair_freqs):
+        rff_embedding(feats[:, feat_locs[f1]+feat_locs[f2]], wts, freqs,
+                      out=out[pos:pos+step])
+        pos += step
+
+    # # dummies for our discrete features; helpful for later
+    # print('dummies')
+    # dummies = {}
+    # for d in m.discretes:
+    #     dummies[d] = _get_dummies(
+    #         feats[d], m.stats['value_counts'][d],
+    #         with_nan=_needs_nan(d, m.stats), dtype=np.uint8)
+
+    # real-discrete pair features
+    # want to make weight subsets that only hit the relevant feats
+    for fr, fd in m.rff_discrete_pairs:
+        d = feats[:, feat_locs[fd]]
+        l = d.shape[1]
+        freqs = m.one_freqs_d[fr]
+        step = 2 * m.one_n_freqs * l
+
+        d_wts = d.T[np.newaxis, :, :] * wts[:, np.newaxis, :]  # n_subs, l, n
+        d_wts = d_wts.reshape(l * n_subs, n)
+        tmp_out = rff_embedding(feats[:, feat_locs[fr]], d_wts, freqs)  # D, l * n_subs
+        out[pos:pos + step] = tmp_out.reshape(-1, n_subs)
+        pos += step
+
+    # discrete interactions
+    for f1, f2 in m.discrete_pairs:
+        d1 = feats[:, feat_locs[f1]]
+        d2 = feats[:, feat_locs[f2]]
+        l1 = d1.shape[1]
+        l2 = d2.shape[1]
+        step = l1 * l2
+        d = (d1[:, :, np.newaxis] * d2[:, np.newaxis, :]).reshape(n, step)
+        linear_embedding(d, wts, out=out[pos:pos+step])
+        pos += step
+
+    assert pos == m.n_extra
+    return out

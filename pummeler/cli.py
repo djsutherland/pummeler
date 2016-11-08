@@ -101,6 +101,10 @@ def main():
     g.add_argument('--do-my-proc', action='store_true', default=False,
                    help="HACK: Do my changes (drop things, cat codes, etc)")
     g.add_argument('--no-my-proc', action='store_false', dest='do_my_proc')
+    g = emb.add_mutually_exclusive_group()
+    g.add_argument('--do-my-additive', action='store_true', default=False,
+                   help="HACK: do additive + some interactions embedding")
+    g.add_argument('--no-my-additive', action='store_false', dest='do_my_additive')
     emb.add_argument('--subsets', metavar='PANDAS_QUERY',
                      help="Comma-separated subsets of the data to calculate "
                           "embeddings for, e.g. "
@@ -175,7 +179,7 @@ def do_featurize(args, parser):
         seed=args.seed,
         n_freqs=args.n_freqs, bandwidth=args.bandwidth,
         rff_orthogonal=args.rff_orthogonal,
-        do_my_proc=args.do_my_proc)
+        do_my_proc=args.do_my_proc, do_my_additive=args.do_my_additive)
     res = dict(region_names=region_names, subset_queries=args.subsets)
 
     if args.skip_rbf:
