@@ -11,6 +11,11 @@ def get_state_embeddings(embeddings_fn):
 
         region_names = d['region_names']
         region_weights = d['region_weights']
+
+        squeezed = region_weights.ndim == 1
+        if squeezed:
+            region_weights = region_weights[:, np.newaxis]
+
         n_subsets = region_weights.shape[1]
         state_names = sorted({r[:2] for r in region_names})
         state_lookup = {n: i for i, n in enumerate(state_names)}
@@ -29,5 +34,10 @@ def get_state_embeddings(embeddings_fn):
                 ret[k] = d[k]
         for k in d:
             if k.startswith('emb_'):
-                ret[k] = np.einsum('grs, rfs -> gfs', transform, d[k])
+                v = d[k]
+                if squeezed:
+                    v = v[:, :, np.newaxis]
+                ret[k] = np.einsum('grs, rfs -> gfs', transform, v)
+                if squeezed:
+                    ret[k] = ret[k][:, :, 0]
         return ret
