@@ -214,7 +214,7 @@ def do_states(args, parser):
             inf = args.infile[:-4]
         args.outfile = inf + '_states.npz'
 
-    np.savez(args.outfile, get_state_embeddings(args.infile))
+    np.savez(args.outfile, **get_state_embeddings(args.infile))
 
 
 def do_weight_counts(args, parser):
