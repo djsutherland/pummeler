@@ -40,10 +40,9 @@ def get_dummies(df, stats, num_feats=None, ret_df=True, skip_feats=None,
         feat_names = list(real_feats)
     start_col = len(real_feats)
 
-    for k in info['discrete_feats'] + info['alloc_flags']:
+    for k, vc in six.iteritems(stats['value_counts']):
         if k in skip_feats:
             continue
-        vc = stats['value_counts'][k]
         c = pd.Categorical(df[k], categories=vc.index).codes
         n_codes = len(vc)
         if ret_df:
@@ -440,9 +439,13 @@ def _my_proc_setup(stats):
     vc['NAICSP'] = vc['NAICSP'].groupby(naics_cat).sum()
     vc['OCCP'] = vc['OCCP'].groupby(occ_cat).sum()
     vc['FOD1P'] = vc['FOD1P'].groupby(fod_cats).sum()
+    vc['ANYHISP'] = pd.Series(
+        [vc['HISP'].loc[1], vc['HISP'].loc[2:].sum()],
+        index=[0, 1], name='ANYHISP')
 
     _my_proc_chunk(stats['sample'])
 
+    stats['_added_discrete'] = {'ANYHISP'}
     return skip_feats
 
 
@@ -463,6 +466,8 @@ def _my_proc_chunk(df, skip_feats=set()):
     if 'FOD2P' not in skip_feats:
         df['FOD2P'] = df.FOD2P.map(fod_cats, na_action='ignore')
 
+    if 'ANYHISP' not in skip_feats:
+        df['ANYHISP'] = df.HISP > 1
 
 # Other changes that need to be done in sort (:|):
 # income recoding (log-scale, percentages for categories?)
