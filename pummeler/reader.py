@@ -103,7 +103,7 @@ VERSIONS = {
                              HINS5 HINS6 HINS7 JWRIP JWTR LANX MAR MARHD MARHM
                              MARHT MARHW MARHYP MIG MIL MLPA MLPB MLPCD MLPE
                              MLPFG MLPH MLPI MLPJ MLPK NWAB NWAV NWLA NWLK NWRE
-                             RELP SCH SCHG SCHL SEX WKHP WKL WKW WRK ANC ANC1P
+                             RELP SCH SCHG SCHL SEX WKL WKW WRK ANC ANC1P
                              ANC2P DECADE DIS DRIVESP ESP ESR FOD1P FOD2P HICOV
                              HISP INDP LANP MIGPUMA MIGSP MSP NAICSP NATIVITY
                              NOP OC OCCP PAOC POBP POWPUMA POWSP PRIVCOV PUBCOV
@@ -148,7 +148,7 @@ VERSIONS = {
                              HINS5 HINS6 HINS7 JWRIP JWTR LANX MAR MARHD MARHM
                              MARHT MARHW MARHYP MIG MIL MLPA MLPB MLPCD MLPE
                              MLPFG MLPH MLPI MLPJ MLPK NWAB NWAV NWLA NWLK NWRE
-                             RELP SCH SCHG SCHL SEX WKHP WKL WKW WRK ANC ANC1P
+                             RELP SCH SCHG SCHL SEX WKL WKW WRK ANC ANC1P
                              ANC2P DECADE DIS DRIVESP ESP ESR FOD1P
                              FOD2P HICOV HISP INDP LANP MIGPUMA MIGSP MSP
                              NAICSP NATIVITY NOP OC OCCP PAOC POBP POWPUMA
