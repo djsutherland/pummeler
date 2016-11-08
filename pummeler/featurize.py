@@ -250,14 +250,21 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
             weights.append(ws)
             total_weights += ws
 
+        ratios = []
+        for ws in weights:
+            ratio = ws.copy()
+            nz = total_weights != 0
+            ratio[nz] /= total_weights[nz]
+            ratios.append(ratio)
+
         emb_lin[file_idx] = 0
-        for ws, l in zip(weights, lin_emb_pieces):
-            emb_lin[file_idx] += l * (ws / total_weights)
+        for rs, l in zip(ratios, lin_emb_pieces):
+            emb_lin[file_idx] += l * rs
 
         if not skip_rbf:
             emb_rff[file_idx] = 0
-            for ws, r in zip(weights, rff_emb_pieces):
-                emb_rff[file_idx] += r * (ws / total_weights)
+            for rs, r in zip(ratios, rff_emb_pieces):
+                emb_rff[file_idx] += r * rs
 
         region_weights[file_idx] = total_weights
     bar.finish()
