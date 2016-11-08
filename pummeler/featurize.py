@@ -8,6 +8,7 @@ from scipy.linalg import qr
 from sklearn.metrics.pairwise import euclidean_distances
 import six
 
+from .data import fod_codes
 from .reader import VERSIONS
 
 
@@ -163,10 +164,14 @@ def pick_gaussian_bandwidth(stats, skip_feats=None):
 def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                    chunksize=2**13, skip_rbf=False, skip_feats=None, seed=None,
                    rff_orthogonal=True, subsets=None,
-                   squeeze_queries=True, skip_alloc_flags=True):
+                   squeeze_queries=True, skip_alloc_flags=True,
+                   do_my_proc=False):
     skip_feats = set() if skip_feats is None else set(skip_feats)
     if skip_alloc_flags:
         skip_feats.update(VERSIONS[stats['version']]['alloc_flags'])
+    if do_my_proc:
+        skip_feats.update(_my_proc_setup(stats))
+
     n_feats = _num_feats(stats, skip_feats=skip_feats)
     feat_names = None
 
@@ -230,13 +235,13 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
 
             feats = dummies[:c.shape[0], :]
 
+            if do_my_proc:
+                _my_proc_chunk(c)
+
+            df = get_dummies(c, stats, num_feats=n_feats, skip_feats=skip_feats,
+                             ret_df=feat_names is None, out=feats)
             if feat_names is None:
-                df = get_dummies(c, stats, num_feats=n_feats,
-                                 skip_feats=skip_feats, ret_df=True, out=feats)
                 feat_names = list(df.columns)
-            else:
-                get_dummies(c, stats, num_feats=n_feats,
-                            skip_feats=skip_feats, ret_df=False, out=feats)
 
             wts = np.tile(c.PWGTP, (n_subsets, 1))
             for i, w in enumerate(which):
@@ -279,3 +284,186 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
         return emb_lin, region_weights, feat_names
     else:
         return emb_lin, emb_rff, region_weights, freqs, bandwidth, feat_names
+
+
+################################################################################
+
+_naics_cat = {
+    '11': 'Agriculture',
+    '21': 'Extraction',
+    '22': 'Utilities',
+    '23': 'Construction',
+    '31': 'Manufacturing',
+    '32': 'Manufacturing',
+    '33': 'Manufacturing',
+    '3M': 'Manufacturing',
+    '42': 'Wholesale',
+    '44': 'Retail',
+    '45': 'Retail',
+    '4M': 'Retail',
+    '48': 'Transportation',
+    '49': 'Transportation',
+    '51': 'Information',
+    '52': 'Financial Services',
+    '53': 'Rental and Leasing',
+    '54': 'Science and Technical',
+    '55': 'Management',
+    '56': 'Misc Professions',
+    '61': 'Education',
+    '62': 'Medical',
+    '71': 'Entertainment',
+    '72': 'Tourism',
+    '81': 'Services',
+    '92': 'Administration',
+    '99': 'Unemployed',
+}
+def naics_cat(s):
+    return _naics_cat[str(s)[:2]]
+
+occ_cats = [
+    (   0, "N/A"),
+    (   1, "Management, Business, Science, and Arts Occupations"),
+    ( 500, "Business Operations Specialists"),
+    ( 800, "Financial Specialists"),
+    (1000, "Computer and Mathematical Occupations"),
+    (1300, "Architecture and Engineering Occupations"),
+    (1600, "Life, Physical, and Social Science Occupations"),
+    (2000, "Community and Social Services Occupations"),
+    (2100, "Legal Occupations"),
+    (2200, "Education, Training, and Library Occupations"),
+    (2600, "Arts, Design, Entertainment, Sports, and Media Occupations"),
+    (3000, "Healthcare Practitioners and Technical Occupations"),
+    (3600, "Healthcare Support Occupations"),
+    (3700, "Protective Service Occupations"),
+    (4000, "Food Preparation and Serving Occupations"),
+    (4200, "Building and Grounds Cleaning and Maintenance Occupations"),
+    (4300, "Personal Care and Service Occupations"),
+    (4700, "Sales and Related Occupations"),
+    (5000, "Office and Administrative Support Occupations"),
+    (6000, "Farming, Fishing, and Forestry Occupations"),
+    (6200, "Construction and Extraction Occupations"),
+    (6800, "Extraction Workers"),
+    (7000, "Installation, Maintenance, and Repair Workers"),
+    (7700, "Production Occupations"),
+    (9000, "Transportation and Material Moving Occupations"),
+    (9800, "Military Specific Occupations"),
+]
+occ_codes, occ_names = zip(*occ_cats)
+occ_codes = np.array(occ_codes)
+def occ_cat(x):
+    return occ_names[occ_codes.searchsorted(float(x), side='right') - 1]
+
+fod_cats = {k: v for k, v in fod_codes().cat_code.iteritems()}
+
+
+def _my_proc_setup(stats):
+    assert stats['version'] in {'2010-14_12-14', '2012-15_manual', '2015'}
+
+    # inc_feats = set()
+    # inc = lambda a: inc_feats.update(a.split())
+    inc = lambda a: None  # here for documentation only
+    skip_feats = set()
+    skip = lambda a: skip_feats.update(a.split())
+
+    # basic info: keep AGEP, SEX
+    inc('AGEP SEX')
+    skip('QTRBIR')
+
+    # drop stuff about relationships to the reference person
+    skip('RELP OC RC SFN SFR')
+
+    # citizenship
+    inc('CIT DECADE NATIVITY NOP CITWP')
+    skip('YOEP')  # DECADE should be good enough
+
+    # employment:
+    inc('COW ESR WKHP WKL WKW WRK')
+    skip('INDP SOCP')  # TODO: categories here
+    inc('NAICSP OCCP')  # will be recoded below
+    inc('ESP')  # for kids: are parents employed?
+    skip('NWAB NWAV NWLA NWLK NWRE')
+
+    # commute
+    inc('JWDP')  # time left for work
+    skip('JWAP')  # time arrived at work; fairly redundant with JWDP
+    inc('JWMNP')  # travel time
+    inc('JWRIP')  # carpooling
+    skip('DRIVESP')  # 1/JWRIP
+    inc('JWTR')  # commute method
+    skip('POWPUMA POWSP')
+
+    # income
+    inc('INTP OIP PAP RETP SEMP SSIP SSP WAGP PERNP PINCP POVPIP')
+    # NOTE: POVPIP sharply discontinuous, should discretize more
+
+    # kids
+    inc('FER')  # woman who gave birth in last year
+    inc('PAOC')  # woman with kids' ages
+    inc('GCL GCM GCR')  # grandparents living with grandkids
+
+    # education
+    inc('SCH SCHG SCHL SCIENGP SCIENGRLP')
+    inc('FOD1P'); skip('FOD2P')  # recoded into categories below
+
+    # disability
+    inc('DDRS DEAR DEYE DOUT DPHY DREM DRAT DRATX DIS')
+
+    # marital
+    inc('MSP MARHT MARHD MARHM MARHW MARHYP')
+    skip('MAR')  # superceded by MSP
+
+    # language
+    inc('ENG LANX LANP')
+
+    # health insurance
+    inc('HICOV PRIVCOV PUBCOV')
+    skip('HINS1 HINS2 HINS3 HINS4 HINS5 HINS6 HINS7')
+
+    # migration
+    inc('MIG WAOB')  # lived here a year ago, world area of birth
+    skip('MIGPUMA MIGSP')
+    skip('POBP')
+
+    # military
+    inc('MIL VPS')
+    skip('MLPA MLPB MLPCD MLPE MLPFG MLPH MLPI MLPJ MLPK')
+
+    # ancestry
+    inc('HISP')  # 24 levels, area of hispanic origin
+    inc('RAC1P RAC2P RAC3P')  # lots of levels here
+    inc('RACAIAN RACASN RACBLK RACNHPI RACSOR RACWHT RACNUM')
+    skip('ANC')
+    inc('ANC1P ANC2P')
+
+    # modify stats
+    vc = stats['value_counts']
+    vc['NAICSP'] = vc['NAICSP'].groupby(naics_cat).sum()
+    vc['OCCP'] = vc['OCCP'].groupby(occ_cat).sum()
+    vc['FOD1P'] = vc['FOD1P'].groupby(fod_cats).sum()
+
+    _my_proc_chunk(stats['sample'])
+
+    return skip_feats
+
+
+def _my_proc_chunk(df, skip_feats=set()):
+    # get NAICS category
+    if 'NAICPS' not in skip_feats:
+        df['NAICSP'] = df.NAICSP.map(naics_cat, na_action='ignore')
+
+    # get OCC categories
+    if 'OCCP' not in skip_feats:
+        df['OCCP'] = df.OCCP.astype(float).map(occ_cat, na_action='ignore')
+
+    # get field of degree categories
+    # was averaging these before, but that's a little complicated in this
+    # code structure, so whatever
+    if 'FOD1P' not in skip_feats:
+        df['FOD1P'] = df.FOD1P.map(fod_cats, na_action='ignore')
+    if 'FOD2P' not in skip_feats:
+        df['FOD2P'] = df.FOD2P.map(fod_cats, na_action='ignore')
+
+
+# Other changes that need to be done in sort (:|):
+# income recoding (log-scale, percentages for categories?)
+# povpip recoding (0-500 can be real, but 501 needs to be discrete)
