@@ -92,6 +92,11 @@ def main():
                           'Default: none')
     emb.add_argument('--skip-feats', nargs='+', metavar='FEAT_NAME',
                      help="Don't include some features in the embedding.")
+    g = emb.add_mutually_exclusive_group()
+    g.add_argument('--skip-alloc-flags', action='store_true', default=True,
+                   help="Don't include allocation flags (default).")
+    g.add_argument('--include-alloc-flags', action='store_false',
+                   dest='skip_alloc_flags')
     emb.add_argument('--subsets', metavar='PANDAS_QUERY',
                      help="Comma-separated subsets of the data to calculate "
                           "embeddings for, e.g. "
@@ -160,7 +165,8 @@ def do_featurize(args, parser):
     if args.skip_rbf:
         emb_lin, region_weights, feature_names = get_embeddings(
             files, stats=stats, chunksize=args.chunksize, skip_rbf=True,
-            skip_feats=args.skip_feats, subsets=args.subsets)
+            skip_feats=args.skip_feats, subsets=args.subsets,
+            skip_alloc_flags=args.skip_alloc_flags)
         np.savez(args.outfile, emb_lin=emb_lin,
                  feature_names=feature_names, region_names=region_names,
                  region_weights=region_weights, subset_queries=args.subsets)

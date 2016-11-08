@@ -163,8 +163,10 @@ def pick_gaussian_bandwidth(stats, skip_feats=None):
 def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                    chunksize=2**13, skip_rbf=False, skip_feats=None, seed=None,
                    rff_orthogonal=True, subsets=None,
-                   squeeze_queries=True):
+                   squeeze_queries=True, skip_alloc_flags=True):
     skip_feats = set() if skip_feats is None else set(skip_feats)
+    if skip_alloc_flags:
+        skip_feats.update(VERSIONS[stats['version']]['alloc_flags'])
     n_feats = _num_feats(stats, skip_feats=skip_feats)
     feat_names = None
 
