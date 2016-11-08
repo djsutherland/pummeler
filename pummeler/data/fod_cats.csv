@@ -1,0 +1,174 @@
+code,name,subcat,cat,cat_code
+1100,General Agriculture,BIO,SCI,SCI/BIO
+1101,Agriculture Production And Management,BIO,SCI,SCI/BIO
+1102,Agricultural Economics,BIO,SCI,SCI/BIO
+1103,Animal Sciences,BIO,SCI,SCI/BIO
+1104,Food Science,BIO,SCI,SCI/BIO
+1105,Plant Science And Agronomy,BIO,SCI,SCI/BIO
+1106,Soil Science,BIO,SCI,SCI/BIO
+1199,Miscellaneous Agriculture,BIO,SCI,SCI/BIO
+1301,Environmental Science,BIO,SCI,SCI/BIO
+1302,Forestry,BIO,SCI,SCI/BIO
+1303,Natural Resources Management,BIO,SCI,SCI/BIO
+1401,Architecture,SCIR,SCIR,SCIR/SCIR
+1501,Area Ethnic And Civilization Studies,SOC,SCI,SCI/SOC
+1901,Communications,COM,ARTS,ARTS/COM
+1902,Journalism,COM,ARTS,ARTS/COM
+1903,Mass Media,COM,ARTS,ARTS/COM
+1904,Advertising And Public Relations,COM,ARTS,ARTS/COM
+2001,Communication Technologies,COM,ARTS,ARTS/COM
+2100,Computer And Information Systems,CPSC,SCI,SCI/CPSC
+2101,Computer Programming And Data Processing,SCIR,SCIR,SCIR/SCIR
+2102,Computer Science,CPSC,SCI,SCI/CPSC
+2105,Information Sciences,CPSC,SCI,SCI/CPSC
+2106,Computer Administration Management And Security,CPSC,SCI,SCI/CPSC
+2107,Computer Networking And Telecommunications,CPSC,SCI,SCI/CPSC
+2201,Cosmetology Services And Culinary Arts,OTH,ARTS,ARTS/OTH
+2300,General Education,ED,ED,ED/ED
+2301,Educational Administration And Supervision,ED,ED,ED/ED
+2303,School Student Counseling,ED,ED,ED/ED
+2304,Elementary Education,ED,ED,ED/ED
+2305,Mathematics Teacher Education,SCIR,SCIR,SCIR/SCIR
+2306,Physical And Health Education Teaching,ED,ED,ED/ED
+2307,Early Childhood Education,ED,ED,ED/ED
+2308,Science And Computer Teacher Education,SCIR,SCIR,SCIR/SCIR
+2309,Secondary Teacher Education,ED,ED,ED/ED
+2310,Special Needs Education,ED,ED,ED/ED
+2311,Social Science Or History Teacher Education,ED,ED,ED/ED
+2312,Teacher Education: Multiple Levels,ED,ED,ED/ED
+2313,Language And Drama Education,ED,ED,ED/ED
+2314,Art And Music Education,ED,ED,ED/ED
+2399,Miscellaneous Education,ED,ED,ED/ED
+2400,General Engineering,ENG,SCI,SCI/ENG
+2401,Aerospace Engineering,ENG,SCI,SCI/ENG
+2402,Biological Engineering,ENG,SCI,SCI/ENG
+2403,Architectural Engineering,ENG,SCI,SCI/ENG
+2404,Biomedical Engineering,ENG,SCI,SCI/ENG
+2405,Chemical Engineering,ENG,SCI,SCI/ENG
+2406,Civil Engineering,ENG,SCI,SCI/ENG
+2407,Computer Engineering,ENG,SCI,SCI/ENG
+2408,Electrical Engineering,ENG,SCI,SCI/ENG
+2409,Engineering Mechanics Physics And Science,ENG,SCI,SCI/ENG
+2410,Environmental Engineering,ENG,SCI,SCI/ENG
+2411,Geological And Geophysical Engineering,ENG,SCI,SCI/ENG
+2412,Industrial And Manufacturing Engineering,ENG,SCI,SCI/ENG
+2413,Materials Engineering And Materials Science,ENG,SCI,SCI/ENG
+2414,Mechanical Engineering,ENG,SCI,SCI/ENG
+2415,Metallurgical Engineering,ENG,SCI,SCI/ENG
+2416,Mining And Mineral Engineering,ENG,SCI,SCI/ENG
+2417,Naval Architecture And Marine Engineering,ENG,SCI,SCI/ENG
+2418,Nuclear Engineering,ENG,SCI,SCI/ENG
+2419,Petroleum Engineering,ENG,SCI,SCI/ENG
+2499,Miscellaneous Engineering,ENG,SCI,SCI/ENG
+2500,Engineering Technologies,SCIR,SCIR,SCIR/SCIR
+2501,Engineering And Industrial Management,SCIR,SCIR,SCIR/SCIR
+2502,Electrical Engineering Technology,SCIR,SCIR,SCIR/SCIR
+2503,Industrial Production Technologies,SCIR,SCIR,SCIR/SCIR
+2504,Mechanical Engineering Related Technologies,SCIR,SCIR,SCIR/SCIR
+2599,Miscellaneous Engineering Technologies,SCIR,SCIR,SCIR/SCIR
+2601,Linguistics And Comparative Language And Literature,LIT,ARTS,ARTS/LIT
+2602,French German Latin And Other Common Foreign Language Studies,LIT,ARTS,ARTS/LIT
+2603,Other Foreign Languages,LIT,ARTS,ARTS/LIT
+2901,Family And Consumer Sciences,OTH,ARTS,ARTS/OTH
+3201,Court Reporting,BUS,BUS,BUS/BUS
+3202,Pre-Law And Legal Studies,OTH,ARTS,ARTS/OTH
+3301,English Language And Literature,LIT,ARTS,ARTS/LIT
+3302,Composition And Rhetoric,LIT,ARTS,ARTS/LIT
+3401,Liberal Arts,LIB,ARTS,ARTS/LIB
+3402,Humanities,LIB,ARTS,ARTS/LIB
+3501,Library Science,OTH,ARTS,ARTS/OTH
+3600,Biology,BIO,SCI,SCI/BIO
+3601,Biochemical Sciences,BIO,SCI,SCI/BIO
+3602,Botany,BIO,SCI,SCI/BIO
+3603,Molecular Biology,BIO,SCI,SCI/BIO
+3604,Ecology,BIO,SCI,SCI/BIO
+3605,Genetics,BIO,SCI,SCI/BIO
+3606,Microbiology,BIO,SCI,SCI/BIO
+3607,Pharmacology,BIO,SCI,SCI/BIO
+3608,Physiology,BIO,SCI,SCI/BIO
+3609,Zoology,BIO,SCI,SCI/BIO
+3611,Neuroscience,MULT,SCI,SCI/MULT
+3699,Miscellaneous Biology,BIO,SCI,SCI/BIO
+3700,Mathematics,CPSC,SCI,SCI/CPSC
+3701,Applied Mathematics,CPSC,SCI,SCI/CPSC
+3702,Statistics And Decision Science,CPSC,SCI,SCI/CPSC
+3801,Military Technologies,OTH,ARTS,ARTS/OTH
+4000,Multi/Interdisciplinary Studies,MULT,SCI,SCI/MULT
+4001,Intercultural And International Studies,MULT,SCI,SCI/MULT
+4002,Nutrition Sciences,MULT,SCI,SCI/MULT
+4005,Mathematics And Computer Science,CPSC,SCI,SCI/CPSC
+4006,Cognitive Science And Biopsychology,MULT,SCI,SCI/MULT
+4007,Interdisciplinary Social Sciences,MULT,SCI,SCI/MULT
+4101,Physical Fitness Parks Recreation And Leisure,OTH,ARTS,ARTS/OTH
+4801,Philosophy And Religious Studies,LIB,ARTS,ARTS/LIB
+4901,Theology And Religious Vocations,LIB,ARTS,ARTS/LIB
+5000,Physical Sciences,PHY,SCI,SCI/PHY
+5001,Astronomy And Astrophysics,PHY,SCI,SCI/PHY
+5002,Atmospheric Sciences And Meteorology,PHY,SCI,SCI/PHY
+5003,Chemistry,PHY,SCI,SCI/PHY
+5004,Geology And Earth Science,PHY,SCI,SCI/PHY
+5005,Geosciences,PHY,SCI,SCI/PHY
+5006,Oceanography,PHY,SCI,SCI/PHY
+5007,Physics,PHY,SCI,SCI/PHY
+5008,Materials Science,ENG,SCI,SCI/ENG
+5098,Multi-Disciplinary Or General Science,MULT,SCI,SCI/MULT
+5102,"Nuclear, Industrial Radiology, And Biological Technologies",SCIR,SCIR,SCIR/SCIR
+5200,Psychology,PSY,SCI,SCI/PSY
+5201,Educational Psychology,PSY,SCI,SCI/PSY
+5202,Clinical Psychology,PSY,SCI,SCI/PSY
+5203,Counseling Psychology,PSY,SCI,SCI/PSY
+5205,Industrial And Organizational Psychology,PSY,SCI,SCI/PSY
+5206,Social Psychology,PSY,SCI,SCI/PSY
+5299,Miscellaneous Psychology,PSY,SCI,SCI/PSY
+5301,Criminal Justice And Fire Protection,OTH,ARTS,ARTS/OTH
+5401,Public Administration,OTH,ARTS,ARTS/OTH
+5402,Public Policy,OTH,ARTS,ARTS/OTH
+5403,Human Services And Community Organization,OTH,ARTS,ARTS/OTH
+5404,Social Work,OTH,ARTS,ARTS/OTH
+5500,General Social Sciences,SOC,SCI,SCI/SOC
+5501,Economics,SOC,SCI,SCI/SOC
+5502,Anthropology And Archeology,SOC,SCI,SCI/SOC
+5503,Criminology,SOC,SCI,SCI/SOC
+5504,Geography,SOC,SCI,SCI/SOC
+5505,International Relations,SOC,SCI,SCI/SOC
+5506,Political Science And Government,SOC,SCI,SCI/SOC
+5507,Sociology,SOC,SCI,SCI/SOC
+5599,Miscellaneous Social Sciences,SOC,SCI,SCI/SOC
+5601,Construction Services,OTH,ARTS,ARTS/OTH
+5701,"Electrical, Mechanical, And Precision Technologies And Production",OTH,ARTS,ARTS/OTH
+5901,Transportation Sciences And Technologies,OTH,ARTS,ARTS/OTH
+6000,Fine Arts,ART,ARTS,ARTS/ART
+6001,Drama And Theater Arts,ART,ARTS,ARTS/ART
+6002,Music,ART,ARTS,ARTS/ART
+6003,Visual And Performing Arts,ART,ARTS,ARTS/ART
+6004,Commercial Art And Graphic Design,ART,ARTS,ARTS/ART
+6005,Film Video And Photographic Arts,ART,ARTS,ARTS/ART
+6006,Art History And Criticism,ART,ARTS,ARTS/ART
+6007,Studio Arts,ART,ARTS,ARTS/ART
+6099,Miscellaneous Fine Arts,ART,ARTS,ARTS/ART
+6100,General Medical And Health Services,SCIR,SCIR,SCIR/SCIR
+6102,Communication Disorders Sciences And Services,SCIR,SCIR,SCIR/SCIR
+6103,Health And Medical Administrative Services,SCIR,SCIR,SCIR/SCIR
+6104,Medical Assisting Services,SCIR,SCIR,SCIR/SCIR
+6105,Medical Technologies Technicians,SCIR,SCIR,SCIR/SCIR
+6106,Health And Medical Preparatory Programs,SCIR,SCIR,SCIR/SCIR
+6107,Nursing,SCIR,SCIR,SCIR/SCIR
+6108,Pharmacy Pharmaceutical Sciences And Administration,SCIR,SCIR,SCIR/SCIR
+6109,Treatment Therapy Professions,SCIR,SCIR,SCIR/SCIR
+6110,Community And Public Health,SCIR,SCIR,SCIR/SCIR
+6199,Miscellaneous Health Medical Professions,SCIR,SCIR,SCIR/SCIR
+6200,General Business,BUS,BUS,BUS/BUS
+6201,Accounting,BUS,BUS,BUS/BUS
+6202,Actuarial Science,BUS,BUS,BUS/BUS
+6203,Business Management And Administration,BUS,BUS,BUS/BUS
+6204,Operations Logistics And E-Commerce,BUS,BUS,BUS/BUS
+6205,Business Economics,BUS,BUS,BUS/BUS
+6206,Marketing And Marketing Research,BUS,BUS,BUS/BUS
+6207,Finance,BUS,BUS,BUS/BUS
+6209,Human Resources And Personnel Management,BUS,BUS,BUS/BUS
+6210,International Business,BUS,BUS,BUS/BUS
+6211,Hospitality Management,BUS,BUS,BUS/BUS
+6212,Management Information Systems And Statistics,BUS,BUS,BUS/BUS
+6299,Miscellaneous Business & Medical Administration,BUS,BUS,BUS/BUS
+6402,History,LIB,ARTS,ARTS/LIB
+6403,United States History,LIB,ARTS,ARTS/LIB

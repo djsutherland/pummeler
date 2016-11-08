@@ -3,17 +3,28 @@ import os
 import numpy as np
 import pandas as pd
 
+
+def _stream_or_fn(name):
+    try:
+        from pkg_resources import resource_stream
+        return resource_stream('pummeler', 'data/{}'.format(name))
+    except ImportError:
+        return os.path.join(os.path.dirname(__file__), name)
+
+def _file_or_fn(name):
+    try:
+        from pkg_resources import resource_filename
+        return resource_filename('pummeler', 'data/{}'.format(name))
+    except ImportError:
+        return os.path.join(os.path.dirname(__file__), name)
+
+
 _g = {}
 def geocode_data(key):
     try:
         return _g[key]
     except KeyError:
-        try:
-            from pkg_resources import resource_filename
-            fn = resource_filename('pummeler', 'data/regions.h5')
-        except ImportError:
-            fn = os.path.join(os.path.dirname(__file__), 'regions.h5')
-        x = _g[key] = pd.read_hdf(fn, key)
+        x = _g[key] = pd.read_hdf(_file_or_fn('regions.h5'), key)
         return x
 
 
@@ -33,14 +44,12 @@ def election_data(regions='00'):
         p = '2012-by-region.csv.gz'
     else:
         p = '2012-by-region-puma10s.csv.gz'
-    try:
-        from pkg_resources import resource_stream
-        f = resource_stream('pummeler', 'data/' + p)
-    except ImportError:
-        f = os.path.join(os.path.dirname(__file__), p)
+    return pd.read_csv(_stream_or_fn(p), compression='gzip').set_index('region')
 
-    r = pd.read_csv(f, compression='gzip').set_index('region')
-    return r
+
+def fod_codes():
+    # categories from http://www.census.gov/prod/2012pubs/acs-18.pdf
+    return pd.read_csv(_stream_or_fn('fod_cats.csv')).set_index('code')
 
 
 try:
