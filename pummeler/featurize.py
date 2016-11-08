@@ -109,7 +109,7 @@ def rff_embedding(feats, wts, freqs, out=None):
     np.dot(cos_angles.T, wts.T, out=out[D:])
     w = wts.sum(axis=1)
     nz = w != 0
-    out[:, nz] /= w[np.newaxis, nz]
+    out[:, nz] /= w[np.newaxis, nz] * np.sqrt(D)
     return out
 
 
