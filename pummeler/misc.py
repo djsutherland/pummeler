@@ -1,7 +1,3 @@
-from itertools import groupby
-import os
-
-import h5py
 import numpy as np
 
 
@@ -26,9 +22,6 @@ def get_state_embeddings(data_dict, dirname):
     transform /= state_weights[:, np.newaxis, :]
 
     ret = {'state_names': state_names, 'state_weights': state_weights}
-    for k in ['bandwidth', 'freqs', 'feature_names', 'subset_queries']:
-        if k in data_dict:
-            ret[k] = data_dict[k]
     for k in data_dict:
         if k.startswith('emb_'):
             v = data_dict[k]
@@ -37,4 +30,8 @@ def get_state_embeddings(data_dict, dirname):
             ret[k] = np.einsum('grs, rfs -> gfs', transform, v)
             if squeezed:
                 ret[k] = ret[k][:, :, 0]
+        elif k in {'region_names', 'region_weights'}:
+            pass
+        else:
+            ret[k] = data_dict[k]
     return ret
