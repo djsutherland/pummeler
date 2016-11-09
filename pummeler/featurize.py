@@ -331,10 +331,28 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
             emb_extra = emb_extra[:, :, 0]
         region_weights = region_weights[:, 0]
 
-    if skip_rbf:
-        return emb_lin, region_weights, feat_names
-    else:
-        return emb_lin, emb_rff, region_weights, freqs, bandwidth, feat_names
+    ret = {
+        'emb_lin': emb_lin,
+        'region_weights': region_weights,
+        'feat_names': feat_names
+    }
+    if not skip_rbf:
+        ret['emb_rff'] = emb_rff
+        ret['freqs'] = freqs
+        ret['bandwidth'] = bandwidth
+    if do_my_additive:
+        ret['emb_extra'] = emb_extra
+        ret['extra_names'] = m.extra_names
+        ret['rff_reals'] = m.rff_reals
+        ret['rff_pairs'] = m.rff_pairs
+        ret['rff_discrete_pairs'] = m.rff_discrete_pairs
+        ret['discrete_pairs'] = m.discrete_pairs
+        ret['one_bws'] = m.one_bws
+        ret['pair_bws'] = m.pair_bws
+        ret['one_freqs'] = m.one_freqs
+        ret['pair_freqs'] = m.pair_freqs
+
+    return ret
 
 
 ################################################################################

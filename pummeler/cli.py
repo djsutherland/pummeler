@@ -171,7 +171,7 @@ def do_featurize(args, parser):
     files = glob(os.path.join(args.dir, 'feats_*.h5'))
     region_names = [os.path.basename(f)[6:-3] for f in files]
 
-    kwargs = dict(
+    res = get_embeddings(
         files=files, stats=stats, chunksize=args.chunksize,
         skip_rbf=args.skip_rbf,
         skip_feats=args.skip_feats, subsets=args.subsets,
@@ -180,18 +180,9 @@ def do_featurize(args, parser):
         n_freqs=args.n_freqs, bandwidth=args.bandwidth,
         rff_orthogonal=args.rff_orthogonal,
         do_my_proc=args.do_my_proc, do_my_additive=args.do_my_additive)
-    res = dict(region_names=region_names, subset_queries=args.subsets)
-
-    if args.skip_rbf:
-        emb_lin, region_weights, feature_names = get_embeddings(**kwargs)
-        np.savez(args.outfile,
-                 emb_lin=emb_lin, region_weights=region_weights,
-                 feature_names=feature_names, **res)
-    else:
-        emb_lin, emb_rff, rws, fs, bw, fns = get_embeddings(**kwargs)
-        np.savez(args.outfile,
-                 emb_lin=emb_lin, emb_rff=emb_rff, region_weights=rws,
-                 freqs=fs, bandwidth=bw, feature_names=fns, **res)
+    res['region_names'] = region_names
+    res['subset_queries'] = args.subsets
+    np.savez_compressed(args.outfile, **res)
 
 
 def do_export(args, parser):
