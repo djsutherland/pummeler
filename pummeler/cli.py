@@ -79,10 +79,13 @@ def main():
     g.add_argument('--save-uncompressed', action='store_false',
                    dest='store_compressed')
     g = io.add_mutually_exclusive_group()
-    g.add_argument('--save-npz', action='store_true', default=True,
+    g.add_argument('--save-npz',
+                   action='store_const', dest='format', const='npz',
                    help="Save outputs in an npz (default).")
-    g.add_argument('--save-hdf5', action='store_false', dest='save_npz',
+    g.add_argument('--save-hdf5',
+                   action='store_const', dest='format', const='hdf5',
                    help="Save outputs in an hdf5 file.")
+    g.set_defaults(format='npz')
 
     emb = featurize.add_argument_group('Embedding options')
     emb.add_argument('--skip-rbf', action='store_true', default=False,
@@ -147,6 +150,20 @@ def main():
     states.set_defaults(func=do_states)
 
     io = states.add_argument_group('Input/output options')
+    g = io.add_mutually_exclusive_group()
+    g.add_argument('--npz', action='store_const', const='npz', dest='format')
+    g.add_argument('--hdf5', action='store_const', const='h5', dest='format')
+
+    g = io.add_mutually_exclusive_group()
+    g.add_argument('--save-compressed', action='store_true', default=False,
+                   help="Save embeddings in a compressed .npz (hdf5 will "
+                        "always compress the sparse embeddings). Requires "
+                        "enough free space in $TMPDIR, but should compress at "
+                        "least emb_lin and especially emb_extra pretty "
+                        "reasonably. Default: %(default)s.")
+    g.add_argument('--save-uncompressed', action='store_false',
+                   dest='store_compressed')
+
     io.add_argument('infile', help="The existing region embeddings.")
     io.add_argument('outfile', default=None, nargs='?',
                     help="Where to output; default adds _states to the "
@@ -202,18 +219,25 @@ def do_featurize(args, parser):
         do_my_proc=args.do_my_proc, do_my_additive=args.do_my_additive)
     res['region_names'] = region_names
     res['subset_queries'] = args.subsets
+    _save_embeddings(args.outfile, res, format=args.format,
+                     compressed=args.save_compressed)
+
+
+def _save_embeddings(outfile, res, format='npz', compressed=False):
     try:
-        if args.save_npz:
-            fn = np.savez_compressed if args.save_compressed else np.savez
+        if format == 'npz':
+            fn = np.savez_compressed if compressed else np.savez
             fn(args.outfile, **res)
-        else:
-            with h5py.File(args.outfile, 'w') as f:
+        elif format == 'hdf5':
+            with h5py.File(outfile, 'w') as f:
                 for k, v in six.iteritems(res):
                     if k in {'emb_lin', 'emb_extra'}:
                         f.create_dataset(
                             k, data=v, compression='gzip', shuffle=True)
                     else:
                         f[k] = v
+        else:
+            raise ValueError("Unknown output format {!r}".format(args.format))
     except (IOError, ValueError) as e:
         print("Error saving: {}".format(e))
         if sys.stdin.isatty() and sys.stdout.isatty():
@@ -254,13 +278,31 @@ def do_export(args, parser):
 
 
 def do_states(args, parser):
+    if args.format is None:
+        if args.infile.endswith('.npz'):
+            args.format = 'npz'
+        elif args.infile.endswith('.h5') or args.infile.endswith('.hdf5'):
+            args.format = 'hdf5'
+        else:
+            msg = ("Couldn't infer file format from name '{}'; pass --npz or "
+                   "--hdf5.")
+            parser.error(msg.format(os.path.basename(args.infile)))
+
     if args.outfile is None:
         inf = args.infile
-        if args.infile.endswith('.npz'):
+        if args.format == 'npz' and args.infile.endswith('.npz'):
             inf = args.infile[:-4]
-        args.outfile = inf + '_states.npz'
+        elif args.format == 'hdf5':
+            if args.infile.endswith('.h5'):
+                inf = args.infile[:-3]
+            elif args.infile.endswith('.hdf5'):
+                inf = args.infile[:-5]
+        args.outfile = inf + '_states.{}'.format(
+            'npz' if args.format == 'npz' else 'h5')
 
-    np.savez(args.outfile, **get_state_embeddings(args.infile))
+    state_embs = get_state_embeddings(args.infile)
+    _save_embeddings(args.outfile, state_embs, format=args.format,
+                     compressed=args.compressed)
 
 
 def do_weight_counts(args, parser):
