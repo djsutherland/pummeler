@@ -77,7 +77,7 @@ def main():
                         "least emb_lin and especially emb_extra pretty "
                         "reasonably. Default: %(default)s.")
     g.add_argument('--save-uncompressed', action='store_false',
-                   dest='store_compressed')
+                   dest='save_compressed')
     g = io.add_mutually_exclusive_group()
     g.add_argument('--save-npz',
                    action='store_const', dest='format', const='npz',
@@ -162,7 +162,7 @@ def main():
                         "least emb_lin and especially emb_extra pretty "
                         "reasonably. Default: %(default)s.")
     g.add_argument('--save-uncompressed', action='store_false',
-                   dest='store_compressed')
+                   dest='save_compressed')
 
     io.add_argument('infile', help="The existing region embeddings.")
     io.add_argument('outfile', default=None, nargs='?',
@@ -311,7 +311,7 @@ def do_states(args, parser):
     state_embs = get_state_embeddings(d, os.path.dirname(args.infile))
 
     _save_embeddings(args.outfile, state_embs, format=args.format,
-                     compressed=args.compressed)
+                     compressed=args.save_compressed)
 
 
 def do_weight_counts(args, parser):
