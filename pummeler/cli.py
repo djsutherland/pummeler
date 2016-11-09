@@ -3,6 +3,7 @@ import argparse
 from glob import glob
 import os
 import sys
+import traceback
 
 import h5py
 import numpy as np
@@ -227,7 +228,7 @@ def _save_embeddings(outfile, res, format='npz', compressed=False):
     try:
         if format == 'npz':
             fn = np.savez_compressed if compressed else np.savez
-            fn(args.outfile, **res)
+            fn(outfile, **res)
         elif format == 'hdf5':
             with h5py.File(outfile, 'w') as f:
                 for k, v in six.iteritems(res):
@@ -237,10 +238,10 @@ def _save_embeddings(outfile, res, format='npz', compressed=False):
                     else:
                         f[k] = v
         else:
-            raise ValueError("Unknown output format {!r}".format(args.format))
-    except (IOError, ValueError) as e:
-        print("Error saving: {}".format(e))
+            raise ValueError("Unknown output format {!r}".format(format))
+    except:
         if sys.stdin.isatty() and sys.stdout.isatty():
+            traceback.print_exc()
             print("Dropping you to a shell; result is in `res`, save it "
                   "somewhere else.")
             import IPython
