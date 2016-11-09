@@ -5,11 +5,9 @@ import h5py
 import numpy as np
 
 
-def get_state_embeddings(d):
-    dirname = os.path.dirname(embeddings_fn)
-
-    region_names = d['region_names']
-    region_weights = d['region_weights']
+def get_state_embeddings(data_dict, dirname):
+    region_names = data_dict['region_names']
+    region_weights = data_dict['region_weights']
 
     squeezed = region_weights.ndim == 1
     if squeezed:
@@ -29,11 +27,11 @@ def get_state_embeddings(d):
 
     ret = {'state_names': state_names, 'state_weights': state_weights}
     for k in ['bandwidth', 'freqs', 'feature_names', 'subset_queries']:
-        if k in d:
-            ret[k] = d[k]
-    for k in d:
+        if k in data_dict:
+            ret[k] = data_dict[k]
+    for k in data_dict:
         if k.startswith('emb_'):
-            v = d[k]
+            v = data_dict[k]
             if squeezed:
                 v = v[:, :, np.newaxis]
             ret[k] = np.einsum('grs, rfs -> gfs', transform, v)

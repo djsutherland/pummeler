@@ -308,7 +308,7 @@ def do_states(args, parser):
             d = {k: v[()] for k, v in f.iteritems()}
     else:
         raise ValueError("confused by args.format {!r}".format(args.format))
-    state_embs = get_state_embeddings(d)
+    state_embs = get_state_embeddings(d, os.path.dirname(args.infile))
 
     _save_embeddings(args.outfile, state_embs, format=args.format,
                      compressed=args.compressed)
