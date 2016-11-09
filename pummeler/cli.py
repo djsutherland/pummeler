@@ -68,6 +68,14 @@ def main():
     io.add_argument('--chunksize', type=int, default=2**13, metavar='LINES',
                       help="How much of a region to process at a time; default "
                            "%(default)s.")
+    g = io.add_mutually_exclusive_group()
+    g.add_argument('--save-compressed', action='store_true', default=False,
+                   help="Save embeddings in a compressed .npz. Requires "
+                        "enough free space in $TMPDIR, but should compress at "
+                        "least emb_lin and especially emb_extra pretty "
+                        "reasonably. Default: %(default)s.")
+    g.add_argument('--save-uncompressed', action='store_false',
+                   dest='store_compressed')
 
     emb = featurize.add_argument_group('Embedding options')
     emb.add_argument('--skip-rbf', action='store_true', default=False,
@@ -182,7 +190,8 @@ def do_featurize(args, parser):
         do_my_proc=args.do_my_proc, do_my_additive=args.do_my_additive)
     res['region_names'] = region_names
     res['subset_queries'] = args.subsets
-    np.savez_compressed(args.outfile, **res)
+    fn = np.savez_compressed if args.save_compressed els np.savez
+    fn(args.outfile, **res)
 
 
 def do_export(args, parser):
