@@ -281,6 +281,8 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                              ret_df=feat_names is None, out=feats)
             if feat_names is None:
                 feat_names = list(df.columns)
+                feat_identities = [n.split('_', 1)[0] for n in feat_names]
+
                 feat_locs = defaultdict(list)
                 for i, s in enumerate(feat_names):
                     var = s.split('_', 1)[0]
@@ -336,7 +338,8 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
     ret = {
         'emb_lin': emb_lin,
         'region_weights': region_weights,
-        'feat_names': feat_names
+        'feature_names': feat_names,
+        'feature_identities': feat_identities,
     }
     if not skip_rbf:
         ret['emb_rff'] = emb_rff
@@ -345,6 +348,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
     if do_my_additive:
         ret['emb_extra'] = emb_extra
         ret['extra_names'] = m.extra_names
+        ret['extra_identities'] = m.extra_identities
         ret['rff_reals'] = m.rff_reals
         ret['rff_pairs'] = m.rff_pairs
         ret['rff_discrete_pairs'] = m.rff_discrete_pairs
@@ -595,26 +599,24 @@ def my_additive_setup(stats, skip_feats, seed):
                 l.append('nan')
         return _levels[d]
 
-    m.extra_names = (
-        ['{}_{}{}'.format(r, sc, i)
+    m.extra_names, m.extra_identities = zip(*(
+        [('{}_{}{}'.format(r, sc, i), '{}_rff'.format(r))
          for r in m.rff_reals
          for sc in ['sin', 'cos']
          for i in xrange(m.one_n_freqs)] +
-        ['{}_{}_{}{}'.format(d1, d2, sc, i)
+        [('{}_{}_{}{}'.format(d1, d2, sc, i), '{}_{}_rff'.format(d1, d2))
          for d1, d2 in m.rff_pairs
          for sc in ['sin', 'cos']
          for i in xrange(m.pair_n_freqs)] +
-        ['{}_{}_{}_{}{}'.format(d, r, v, sc, i)
+        [('{}_{}_{}_{}{}'.format(d, r, v, sc, i), '{}_{}_rff'.format(d, r))
          for r, d in m.rff_discrete_pairs
          for sc in ['sin', 'cos']
          for i in xrange(m.one_n_freqs)
          for v in levels(d)] +
-        ['{}_{}_{}_{}'.format(d1, d2, v1, v2)
+        [('{}_{}_{}_{}'.format(d1, d2, v1, v2), '{}_{}'.format(d1, d2))
          for d1, d2 in m.discrete_pairs
          for v1 in levels(d1)
-         for v2 in levels(d2)
-        ]
-    )
+         for v2 in levels(d2)]))
     m.n_extra = len(m.extra_names)
 
     samp = np.array(stats['sample'][m.rff_reals], copy=True)
