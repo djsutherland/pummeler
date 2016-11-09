@@ -263,17 +263,19 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                 c = c.iloc[:1]
                 which = which[:, :1]
 
+            old_n = c.shape[0]
             keep = which.any(axis=0)
             c = c.loc[keep]
             which = which[:, keep]
             if not c.shape[0]:
                 continue
 
-
             feats = dummies[:c.shape[0], :]
 
             if do_my_proc:
-                _my_proc_chunk(c)
+                if c.shape[0] < old_n:
+                    c = c.copy()
+                _my_proc_chunk(c, skip_feats=skip_feats)
 
             df = get_dummies(c, stats, num_feats=n_feats, skip_feats=skip_feats,
                              ret_df=feat_names is None, out=feats)
