@@ -303,7 +303,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
 
         ratios = []
         for ws in weights:
-            ratio = ws.copy()
+            ratio = np.array(ws, dtype=float, copy=True)
             nz = total_weights != 0
             ratio[nz] /= total_weights[nz]
             ratios.append(ratio)
