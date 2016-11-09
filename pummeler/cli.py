@@ -300,7 +300,16 @@ def do_states(args, parser):
         args.outfile = inf + '_states.{}'.format(
             'npz' if args.format == 'npz' else 'h5')
 
-    state_embs = get_state_embeddings(args.infile)
+    if args.format == 'npz':
+        with np.load(args.infile) as f:
+            d = dict(**f)
+    elif args.format == 'hdf5':
+        with h5py.File(args.infile, 'r') as f:
+            d = {k: v[()] for k, v in f.iteritems()}
+    else:
+        raise ValueError("confused by args.format {!r}".format(args.format))
+    state_embs = get_state_embeddings(d)
+
     _save_embeddings(args.outfile, state_embs, format=args.format,
                      compressed=args.compressed)
 
