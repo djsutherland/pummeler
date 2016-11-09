@@ -349,10 +349,10 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
     keep_multilevels = _keeps(feat_identities)
     if do_my_additive:
         # only want to drop this for discrete-discrete features;
-        keep_multilevel_extras = _keeps(m.extra_identities)
-        for i in (~keep_multilevel_extras).nonzero()[0]:
+        extra_keep_multilevels = _keeps(m.extra_identities)
+        for i in (~extra_keep_multilevels).nonzero()[0]:
             if m.extra_names[i].endswith('_rff'):
-                keep_multilevel_extras[i] = True
+                extra_keep_multilevels[i] = True
 
     ret = {
         'emb_lin': emb_lin,
@@ -377,7 +377,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
         ret['pair_bws'] = m.pair_bws
         ret['one_freqs'] = m.one_freqs
         ret['pair_freqs'] = m.pair_freqs
-        ret['keep_multilevel_extras'] = keep_multilevel_extras
+        ret['extra_keep_multilevels'] = extra_keep_multilevels
 
     return ret
 
