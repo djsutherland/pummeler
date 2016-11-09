@@ -2,10 +2,12 @@ from __future__ import division, print_function
 import argparse
 from glob import glob
 import os
+import sys
 
 import h5py
 import numpy as np
 import pandas as pd
+import six
 
 from .featurize import get_embeddings
 from .misc import get_state_embeddings
@@ -76,6 +78,11 @@ def main():
                         "reasonably. Default: %(default)s.")
     g.add_argument('--save-uncompressed', action='store_false',
                    dest='store_compressed')
+    g = io.add_mutually_exclusive_group()
+    g.add_argument('--save-npz', action='store_true', default=True,
+                   help="Save outputs in an npz (default).")
+    g.add_argument('--save-hdf5', action='store_false', dest='save_npz',
+                   help="Save outputs in an hdf5 file.")
 
     emb = featurize.add_argument_group('Embedding options')
     emb.add_argument('--skip-rbf', action='store_true', default=False,
@@ -175,6 +182,11 @@ def do_sort(args, parser):
 def do_featurize(args, parser):
     if args.outfile is None:
         args.outfile = os.path.join(args.dir, 'embeddings.npz')
+
+    if os.path.exists(args.outfile):
+        parser.error(("Outfile {} exists. Delete it first if you really want "
+                      "to override").format(args.outfile))
+
     stats = load_stats(os.path.join(args.dir, 'stats.h5'))
     files = glob(os.path.join(args.dir, 'feats_*.h5'))
     region_names = [os.path.basename(f)[6:-3] for f in files]
@@ -190,8 +202,27 @@ def do_featurize(args, parser):
         do_my_proc=args.do_my_proc, do_my_additive=args.do_my_additive)
     res['region_names'] = region_names
     res['subset_queries'] = args.subsets
-    fn = np.savez_compressed if args.save_compressed els np.savez
-    fn(args.outfile, **res)
+    try:
+        if args.save_npz:
+            fn = np.savez_compressed if args.save_compressed else np.savez
+            fn(args.outfile, **res)
+        else:
+            with h5py.File(args.outfile, 'w') as f:
+                for k, v in six.iteritems(res):
+                    if k in {'emb_lin', 'emb_extra'}:
+                        f.create_dataset(
+                            k, data=v, compression='gzip', shuffle=True)
+                    else:
+                        f[k] = v
+    except (IOError, ValueError) as e:
+        print("Error saving: {}".format(e))
+        if sys.stdin.isatty() and sys.stdout.isatty():
+            print("Dropping you to a shell; result is in `res`, save it "
+                  "somewhere else.")
+            import IPython
+            IPython.embed()
+        else:
+            raise
 
 
 def do_export(args, parser):
