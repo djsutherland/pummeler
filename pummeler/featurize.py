@@ -297,7 +297,8 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                 emb_rff_pieces.append(rff_embedding(feats, wts, freqs))
 
             if do_my_additive:
-                emb_extra_pieces.append(my_additive_extras(feats, wts, m, feat_locs))
+                emb_extra_pieces.append(my_additive_extras(
+                    feats, wts, m, feat_locs))
 
             ws = wts.sum(axis=1)
             weights.append(ws)
@@ -335,11 +336,30 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
             emb_extra = emb_extra[:, :, 0]
         region_weights = region_weights[:, 0]
 
+    # figure out which levels we'd want to drop for the sake of
+    # killing perfect colinearity in dummy features
+    def _keeps(identities):
+        _, ids = np.unique(identities, return_inverse=True)
+        starts = np.diff(ids).nonzero()[0]
+        ends = np.r_[starts[1:], len(identities)]
+        keeps = np.ones(len(identities), dtype=bool)
+        keeps[starts[ends - starts > 1]] = False
+        return keeps
+
+    keep_multilevels = _keeps(feat_identities)
+    if do_my_additive:
+        # only want to drop this for discrete-discrete features;
+        keep_multilevel_extras = _keeps(m.extra_identities)
+        for i in (~keep_multilevel_extras).nonzero()[0]:
+            if m.extra_names[i].endswith('_rff'):
+                keep_multilevel_extras[i] = True
+
     ret = {
         'emb_lin': emb_lin,
         'region_weights': region_weights,
         'feature_names': feat_names,
         'feature_identities': feat_identities,
+        'keep_multilevels': keep_multilevels,
     }
     if not skip_rbf:
         ret['emb_rff'] = emb_rff
@@ -357,6 +377,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
         ret['pair_bws'] = m.pair_bws
         ret['one_freqs'] = m.one_freqs
         ret['pair_freqs'] = m.pair_freqs
+        ret['keep_multilevel_extras'] = keep_multilevel_extras
 
     return ret
 
