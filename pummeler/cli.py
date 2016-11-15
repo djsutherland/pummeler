@@ -202,11 +202,15 @@ def do_sort(args, parser):
 
 def do_featurize(args, parser):
     if args.outfile is None:
-        args.outfile = os.path.join(args.dir, 'embeddings.npz')
+        ext = {'hdf5': 'h5', 'npz': 'npz'}
+        args.outfile = os.path.join(args.dir, ext.get(args.format, args.format))
 
     if os.path.exists(args.outfile):
         parser.error(("Outfile {} exists. Delete it first if you really want "
                       "to override").format(args.outfile))
+    if not os.path.isdir(os.path.dirname(args.outfile)):
+        parser.error("Directory {} doesn't exist; is that what you meant?"
+                     .format(os.path.dirname(args.outfile)))
 
     stats = load_stats(os.path.join(args.dir, 'stats.h5'))
     files = glob(os.path.join(args.dir, 'feats_*.h5'))
@@ -239,6 +243,9 @@ def _save_embeddings(outfile, res, format='npz', compressed=False):
                     if k in {'emb_lin', 'emb_extra'}:
                         f.create_dataset(
                             k, data=v, compression='gzip', shuffle=True)
+                    elif k == 'subset_queries':
+                        if v is not None:
+                            f[k] = v
                     else:
                         f[k] = v
         else:
