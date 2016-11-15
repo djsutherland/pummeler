@@ -24,8 +24,7 @@ def main():
                     "and Smola (KDD 2015). Needs a preprocessing pass over "
                     "the data to sort it into files by region and to collect "
                     "statistics in order to do one-hot encoding and "
-                    "standardization. Currently supports only the 2006-10 "
-                    "file used in the original paper.",
+                    "standardization.",
     )
     subparsers = parser.add_subparsers()
 
@@ -55,7 +54,7 @@ def main():
                         "(default).")
     g.add_argument('--all-people', action='store_false', dest='voters_only',
                    help="Include all records from the files.")
-    fmt.add_argument('--version', choices=VERSIONS, default='2006-10',
+    fmt.add_argument('--version', choices=sorted(VERSIONS), default='2006-10',
                       help="The format of the ACS PUMS files in use; default "
                            "%(default)s.")
 
@@ -124,6 +123,10 @@ def main():
     g.add_argument('--do-my-additive', action='store_true', default=False,
                    help="HACK: do additive + some interactions embedding")
     g.add_argument('--no-my-additive', action='store_false', dest='do_my_additive')
+    g = emb.add_mutually_exclusive_group()
+    g.add_argument('--common-feats', action='store_true', default=False,
+                   help="HACK: features common to old and new PUMSes")
+    g.add_argument('--no-common-feats', action='store_false', dest='common_feats')
     emb.add_argument('--subsets', metavar='PANDAS_QUERY',
                      help="Comma-separated subsets of the data to calculate "
                           "embeddings for, e.g. "
@@ -217,7 +220,8 @@ def do_featurize(args, parser):
         seed=args.seed,
         n_freqs=args.n_freqs, bandwidth=args.bandwidth,
         rff_orthogonal=args.rff_orthogonal,
-        do_my_proc=args.do_my_proc, do_my_additive=args.do_my_additive)
+        do_my_proc=args.do_my_proc, do_my_additive=args.do_my_additive,
+        common_feats=args.common_feats)
     res['region_names'] = region_names
     res['subset_queries'] = args.subsets
     _save_embeddings(args.outfile, res, format=args.format,

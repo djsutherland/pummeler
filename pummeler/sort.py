@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 from collections import Counter
 import heapq
-import os
 import sys
 import zipfile
 

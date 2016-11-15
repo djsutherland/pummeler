@@ -1,5 +1,8 @@
+from collections import OrderedDict
+
 import pandas as pd
 import six
+
 
 def save_stats(fn, stats):
     with pd.HDFStore(fn, 'w') as f:
@@ -21,9 +24,9 @@ def load_stats(fn):
         for k in ['n_total', 'wt_total', 'version']:
             stats[k] = f[k].iloc[0]
 
-        stats['value_counts'] = v = {}
+        stats['value_counts'] = v = OrderedDict()
         pre = '/value_counts/'
-        for k in f.keys():
+        for k in sorted(f.keys()):
             if k.startswith(pre):
-                v[k[len(pre):]] = f[k]
+                v[k[len(pre):]] = f[k].sort_index()
     return stats

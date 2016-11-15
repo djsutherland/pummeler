@@ -1,5 +1,5 @@
 from __future__ import division, print_function
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import itertools
 import sys
 
@@ -192,13 +192,14 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                    chunksize=2**13, skip_rbf=False, skip_feats=None, seed=None,
                    rff_orthogonal=True, subsets=None,
                    squeeze_queries=True, skip_alloc_flags=True,
-                   do_my_proc=False, do_my_additive=False):
+                   do_my_proc=False, do_my_additive=False,
+                   common_feats=False):
     skip_feats = set() if skip_feats is None else set(skip_feats)
     if skip_alloc_flags:
         skip_feats.update(VERSIONS[stats['version']]['alloc_flags'])
 
     if do_my_proc or do_my_additive:
-        skip_feats.update(_my_proc_setup(stats))
+        skip_feats.update(_my_proc_setup(stats, skip_feats, common_feats))
 
     if do_my_additive:
         do_my_proc = True
@@ -253,7 +254,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
             bar.update(read)
 
             if do_my_proc:
-                _my_proc_chunk(c, skip_feats=skip_feats)
+                _my_proc_chunk(c, stats, skip_feats=skip_feats)
 
             hacked = False
             if c.shape[0] == 1:
@@ -449,14 +450,30 @@ def occ_cat(x):
 fod_cats = {k: v for k, v in fod_codes().cat_code.iteritems()}
 
 
-def _my_proc_setup(stats):
-    assert stats['version'] in {'2010-14_12-14', '2012-15_manual', '2015'}
+def _my_proc_setup(stats, skip_feats, common_feats, do_check=True):
+    stats['do_common'] = common_feats
+    new_pumas = stats['version'] in {'2010-14_12-14', '2012-15_manual', '2015'}
+    old_pumas = stats['version'] in {'2006-10', '2007-11'}
+    if common_feats:
+        assert new_pumas or old_pumas
+    else:
+        assert new_pumas
 
-    # inc_feats = set()
-    # inc = lambda a: inc_feats.update(a.split())
-    inc = lambda a: None  # here for documentation only
-    skip_feats = set()
     skip = lambda a: skip_feats.update(a.split())
+
+    if do_check:
+        inc_feats = set()
+        inc = lambda a: inc_feats.update(a.split())
+        not_feats = set()
+        not_a_thing = lambda a: not_feats.update(a.split())
+    else:
+        inc = not_a_thing = lambda a: None
+
+    if not common_feats:
+        maybe = inc
+    else:
+        maybe = skip if new_pumas else not_a_thing
+    skipp = skip if new_pumas else not_a_thing
 
     # basic info: keep AGEP, SEX
     inc('AGEP SEX')
@@ -466,12 +483,15 @@ def _my_proc_setup(stats):
     skip('RELP OC RC SFN SFR')
 
     # citizenship
-    inc('CIT DECADE NATIVITY NOP CITWP')
+    inc('CIT DECADE NATIVITY NOP')
+    maybe('CITWP')
     skip('YOEP')  # DECADE should be good enough
 
     # employment:
-    inc('COW ESR WKHP WKL WKW WRK')
-    skip('INDP SOCP')  # TODO: categories here
+    inc('COW ESR WKHP WKL WKW')
+    maybe('WRK')
+    skip('INDP' if new_pumas else 'indp02 indp07')
+    skip('SOCP' if new_pumas else 'socp00 socp10')
     inc('NAICSP OCCP')  # will be recoded below
     inc('ESP')  # for kids: are parents employed?
     skip('NWAB NWAV NWLA NWLK NWRE')
@@ -495,22 +515,25 @@ def _my_proc_setup(stats):
     inc('GCL GCM GCR')  # grandparents living with grandkids
 
     # education
-    inc('SCH SCHG SCHL SCIENGP SCIENGRLP')
-    inc('FOD1P'); skip('FOD2P')  # recoded into categories below
+    inc('SCH SCHG SCHL')
+    maybe('SCIENGP SCIENGRLP')
+    maybe('FOD1P'); skipp('FOD2P')  # recoded into categories below
+    inc('HASDEGREE')
 
     # disability
-    inc('DDRS DEAR DEYE DOUT DPHY DREM DRAT DRATX DIS')
+    maybe('DDRS DEAR DEYE DOUT DPHY DREM DRAT DRATX DIS')
 
     # marital
-    inc('MSP MARHT MARHD MARHM MARHW MARHYP')
+    inc('MSP')
+    maybe('MARHT MARHD MARHM MARHW MARHYP')
     skip('MAR')  # superceded by MSP
 
     # language
     inc('ENG LANX LANP')
 
     # health insurance
-    inc('HICOV PRIVCOV PUBCOV')
-    skip('HINS1 HINS2 HINS3 HINS4 HINS5 HINS6 HINS7')
+    maybe('HICOV PRIVCOV PUBCOV')
+    skipp('HINS1 HINS2 HINS3 HINS4 HINS5 HINS6 HINS7')
 
     # migration
     inc('MIG WAOB')  # lived here a year ago, world area of birth
@@ -519,21 +542,53 @@ def _my_proc_setup(stats):
 
     # military
     inc('MIL VPS')
-    skip('MLPA MLPB MLPCD MLPE MLPFG MLPH MLPI MLPJ MLPK')
+    skip('MLPA MLPB MLPE MLPH MLPI MLPJ MLPK')
+    if new_pumas:
+        skip('MLPCD MLPFG')
+    else:
+        skip('MLPC MLPD MLPF MLPG')
 
     # ancestry
     inc('HISP')  # 24 levels, area of hispanic origin
-    inc('RAC1P RAC2P RAC3P')  # lots of levels here
+    inc('RAC1P RAC2P')
+    (skip if common_feats else inc)('RAC3P')
+    # many RAC3P levels that changed meanings, probably overfitting anyway
     inc('RACAIAN RACASN RACBLK RACNHPI RACSOR RACWHT RACNUM')
     skip('ANC')
-    inc('ANC1P ANC2P')
+    inc('ANC1P')
+    skip('ANC2P')  # almost always 999 not reported, would need to recode
+    inc('ETHNICITY ANYHISP')
 
     # modify stats
     vc = stats['value_counts']
-    vc['NAICSP'] = vc['NAICSP'].groupby(naics_cat).sum()
-    vc['OCCP'] = vc['OCCP'].groupby(occ_cat).sum()
-    vc['FOD1P'] = vc['FOD1P'].groupby(fod_cats).sum()
-    vc['HASDEGREE'] = vc['SCHL'].groupby(lambda x: int(x >= 20)).sum()
+    if new_pumas:
+        vc['NAICSP'] = vc['NAICSP'].groupby(naics_cat).sum()
+        vc['OCCP'] = vc['OCCP'].groupby(occ_cat).sum()
+        vc['FOD1P'] = vc['FOD1P'].groupby(fod_cats).sum()
+        vc['FOD2P'] = vc['FOD2P'].groupby(fod_cats).sum()
+
+        if common_feats:
+            vc['SCHG'] = vc['SCHG'].groupby(_schg_remap).sum()
+            vc['SCHL'] = vc['SCHL'].groupby(_schl_remap).sum()
+            vc['FER'] = vc['FER'].groupby(_fer_remap).sum()
+            vc['LANP'] = vc['LANP'].groupby(_lanp_new_remap).sum()
+            vc['ANC1P'] = vc['ANC1P'].groupby(_ancp_new_remap).sum()
+            vc['ANC2P'] = vc['ANC2P'].groupby(_ancp_new_remap).sum()
+            vc['RAC2P'] = vc['RAC2P'].groupby(_rac2p_new_remap).sum()
+    else:
+        vc['NAICSP'] = (vc['naicsp02'].groupby(naics_cat).sum() +
+                        vc['naicsp07'].groupby(naics_cat).sum())
+        vc['OCCP'] = (vc['occp02'].groupby(occ_cat).sum() +
+                      vc['occp10'].groupby(occ_cat).sum())
+        vc['MIL'] = vc['MIL'].groupby(_mil_remap).sum()
+        vc['LANP'] = vc['LANP'].groupby(_lanp_old_remap).sum()
+        vc['ANC1P'] = vc['ANC1P'].groupby(_ancp_old_remap).sum()
+        vc['ANC2P'] = vc['ANC2P'].groupby(_ancp_old_remap).sum()
+        vc['RAC2P'] = vc['RAC2P'].groupby(_rac2p_old_remap).sum()
+        del vc['naicsp02'], vc['naicsp07'], vc['occp02'], vc['occp10']
+
+    cutoff = 12 if common_feats else 20
+    vc['HASDEGREE'] = vc['SCHL'].groupby(lambda x: int(x >= cutoff)).sum()
     vc['ANYHISP'] = vc['HISP'].groupby(lambda x: int(x == 1)).sum()
     vc['ETHNICITY'] = pd.Series(
         [stats['n_total'] - 5] + [1] * 5,
@@ -541,9 +596,19 @@ def _my_proc_setup(stats):
                'other/biracial'])
     # obviously the value counts are a lie, but we don't actually use them
 
-    _my_proc_chunk(stats['sample'])
+    stats['value_counts'] = OrderedDict(sorted(
+        (k, v.sort_index()) for k, v in vc.iteritems()))
+
+    _my_proc_chunk(stats['sample'], stats)
 
     stats['_added_discrete'] = {'ANYHISP', 'HASDEGREE', 'ETHNICITY'}
+
+    if do_check:
+        info = VERSIONS[stats['version']]
+        all_feats = set(info['real_feats']) | set(vc)
+        assert not_feats.isdisjoint(all_feats)
+        assert all_feats == inc_feats | skip_feats
+
     return skip_feats
 
 
@@ -551,31 +616,280 @@ _ethnicity_map = {
         1: 'white', 2: 'black', 3: 'amerindian', 4: 'amerindian',
         5: 'amerindian', 6: 'asian', 7: 'amerindian', 8: 'other/biracial',
         9: 'other/biracial', 'hispanic': 'hispanic'}
+_old_format = frozenset({'2006-10', '2007-11'})
+_schg_remap = {float(k): float(v) for k, v in {  # new codes to old
+        1: 1, 2: 2,
+        3: 3, 4: 3, 5: 3, 6: 3,
+        7: 4, 8: 4, 9: 4, 10:4,
+        11: 5, 12: 5, 13: 5, 14: 5,
+        15: 6, 16: 7
+    }.iteritems()}
+_schl_remap = {float(k): float(v) for k, v in {  # new codes to old
+        1: 1,
+        2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2,
+        8: 3, 9: 3,
+        10: 4, 11: 4,
+        12: 5, 13: 6, 14: 7, 15: 8,
+        16: 9,
+        17: 9,  # assuming GED falls under high school grad here?
+        18: 10, 19: 11, 20: 12, 21: 13, 22: 14, 23: 15, 24: 16,
+    }.iteritems()}
+_mil_remap = {float(k): float(v) for k, v in {  # old codes to new
+        1: 1,
+        2: 2,
+        3: 2,
+        4: 3,
+        5: 4,
+    }.iteritems()}
+_fer_remap = {float(k): float(v) for k, v in {  # new to old, sort of
+        1: 1, 2: 2, 8: np.nan
+        # code 8 is because a few of these results were suppressed in
+        # some PUMAS in FL/GA/KS/MT/NC/OH/TX in 2012;
+        # arbitrarily call these no, I guess
+    }.iteritems()}
 
-def _my_proc_chunk(df, skip_feats=set()):
+_lanp_new_remap = {float(k): float(v) for k, v in {  # new to old
+        602: 989,  # Krio => Other African
+        675: 986,  # Sindhi => Other Asian
+        689: 986,  # Uighur => Other Asian
+        694: 986,  # Mongolian => Other Asian
+        750: 988,  # Micronesian => Other Pacific Island
+        761: 988,  # Trukese => Other Pacific Island
+        819: 993,  # Ojibwa => Other North American Indian
+    }.iteritems()}
+_lanp_old_remap = {float(k): float(v) for k, v in {  # new to old
+        966: 993,  # "American Indian" => Other North American Indian
+    }.iteritems()}
+
+_ancp_new_remap = {float(k): float(v) for k, v in {
+         94:  87,  # Irish Scotch => Scotch Irish
+        131: 176,  # Montenegrin => Yugoslavian
+        146: 144,  # Moldavian => Romanian
+        168: 434,  # Turkestani => Turkish  :/  (no other Central Asian thing?)
+        169: 434,  # Uzbeg => Turkish
+        181:  32,  # Central European => German
+        185:  51,  # Southern European => Italian
+        194:  32,  # Germanic => German
+        219: 215,  # Mexican Indian => Mexican American Indian
+        411: 499,  # North African => Other Arab
+        427: 499,  # Saudia Arabian => Other Arab
+        515: 587,  # Congolese => Other Subsaharan African
+        588: 587,  # Ugandan => Other Subsaharan African
+        607: 799,  # Bhutanese => Other Asian
+        714: 799,  # Tibetan => Other Asian
+        825: 899,  # Marshallese => Other Pacific
+        940: 939,  # United States => American or United States
+    }.iteritems()}
+_ancp_old_remap = {float(k): float(v) for k, v in {
+        794: 995,  # Amerasian => Mixture
+        936: 935,  # Acadian => French Canadian
+    }.iteritems()}
+
+for d in [_lanp_new_remap, _lanp_old_remap, _ancp_new_remap, _ancp_old_remap]:
+    for k in itertools.imap(float, xrange(1000)):
+        d.setdefault(k, k)
+
+_rac2p_old_remap = {float(k): v for k, v in {
+         1: "White",
+         2: "Black or African American",
+         3: "Apache",
+         4: "Blackfeet",
+         5: "Cherokee",
+         6: "Cheyenne",
+         7: "Chickasaw",
+         8: "Chippewa",
+         9: "Choctaw",
+        10: "Other specified American Indian tribes", # "Colville"
+        11: "Comanche",
+        12: "Creek",
+        13: "Crow",
+        14: "Other specified American Indian tribes", # "Delaware"
+        15: "Other specified American Indian tribes", # "Houma"
+        16: "Iroquois",
+        17: "Lumbee",
+        18: "Other specified American Indian tribes", # "Menominee",
+        19: "Navajo",
+        20: "Other specified American Indian tribes", # "Paiute",
+        21: "Pima",
+        22: "Potawatomi",
+        23: "Pueblo",
+        24: "Puget Sound Salish",
+        25: "Seminole",
+        26: "Sioux",
+        27: "Tohono O'Odham",
+        28: "Other specified American Indian tribes", # "Yakama",
+        29: "Yaqui",
+        30: "Other specified American Indian tribes", # "Yuman",
+        31: "Other specified American Indian tribes",
+        # 32: "Combinations of American Indian tribes only",
+        32: "All other specified American Indian tribe combinations",
+        # 33: "American Indian or Alaska Native, tribe not specified, or
+        #      American Indian and Alaska Native",
+        33: "American Indian and Alaska Native, not specified",
+        34: "Alaskan Athabascan",
+        35: "Aleut",
+        36: "Inupiat",
+        37: "Tlingit-Haida",
+        38: "Other Alaska Native",
+        39: "American Indian and Alaska Native, not specified",
+        40: "Asian Indian",
+        41: "Bangladeshi",
+        42: "Cambodian",
+        43: "Chinese",
+        44: "Filipino",
+        45: "Hmong",
+        46: "Indonesian",
+        47: "Japanese",
+        48: "Korean",
+        49: "Laotian",
+        50: "Malaysian",
+        51: "Pakistani",
+        52: "Sri Lankan",
+        53: "Thai",
+        54: "Vietnamese",
+        55: "Other Asian", # "Other specified Asian",
+        56: "Other Asian", #"Asian, not specified",
+        # 57: "Combinations of Asian groups only",
+        57: "All combinations of Asian races only",
+        58: "Native Hawaiian",
+        59: "Samoan",
+        60: "Tongan",
+        # 61: "Other Polynesian alone or in combination with other
+        #      Polynesian groups",
+        61: "Other Native Hawaiian and Other Pacific Islander",
+        62: "Guamanian or Chamorro",
+        # 63: "Other Micronesian alone or in combination with other
+        #      Micronesian groups",
+        63: "Other Native Hawaiian and Other Pacific Islander",
+        # 64: "Melanesian alone or in combination with other Melanesian groups",
+        64: "Other Native Hawaiian and Other Pacific Islander",
+        65: "Other Native Hawaiian and Other Pacific Islander",
+        66: "Some Other Race",
+        67: "Two or More Races",
+    }.iteritems()}
+_rac2p_new_remap = {float(k): v for k, v in {
+         1: "White",
+         2: "Black or African American",
+         3: "Apache",
+         4: "Blackfeet",
+         5: "Cherokee",
+         6: "Cheyenne",
+         7: "Chickasaw",
+         8: "Chippewa",
+         9: "Choctaw",
+        10: "Comanche",
+        11: "Creek",
+        12: "Crow",
+        13: "Other specified American Indian tribes", # Hopi
+        14: "Iroquois",
+        15: "Lumbee",
+        16: "Other specified American Indian tribes",  # Mexican American Indian
+        17: "Navajo",
+        18: "Pima",
+        19: "Potawatomi",
+        20: "Pueblo",
+        21: "Puget Sound Salish",
+        22: "Seminole",
+        23: "Sioux",
+        24: "Other specified American Indian tribes",  # South American Indian
+        25: "Tohono O'Odham",
+        26: "Yaqui",
+        27: "Other specified American Indian tribes",
+        28: "All other specified American Indian tribe combinations",
+        # 29: "American Indian, tribe not specified",
+        29: "American Indian and Alaska Native, not specified",
+        30: "Alaskan Athabascan",
+        31: "Tlingit-Haida",
+        32: "Inupiat",
+        33: "Other Alaska Native", # "Yup'ik",
+        34: "Aleut",
+        35: "Other Alaska Native",
+        # 36: "Other American Indian and Alaska Native specified",
+        36: "All other specified American Indian tribe combinations",
+        37: "American Indian and Alaska Native, not specified",
+        38: "Asian Indian",
+        39: "Bangladeshi",
+        40: "Other Asian", # "Bhutanese",
+        41: "Other Asian", # "Burmese",
+        42: "Cambodian",
+        43: "Chinese",  # Chinese, except Taiwanese
+        44: "Chinese", # "Taiwanese",
+        45: "Filipino",
+        46: "Hmong",
+        47: "Indonesian",
+        48: "Japanese",
+        49: "Korean",
+        50: "Laotian",
+        51: "Malaysian",
+        52: "Other Asian", # "Mongolian",
+        53: "Other Asian", # "Nepalese",
+        54: "Pakistani",
+        55: "Sri Lankan",
+        56: "Thai",
+        57: "Vietnamese",
+        58: "Other Asian",
+        59: "All combinations of Asian races only",
+        60: "Native Hawaiian",
+        61: "Samoan",
+        62: "Tongan",
+        63: "Guamanian or Chamorro",
+        64: "Other Native Hawaiian and Other Pacific Islander", # "Marshallese",
+        65: "Other Native Hawaiian and Other Pacific Islander", # "Fijian",
+        66: "Other Native Hawaiian and Other Pacific Islander",
+        67: "Some Other Race",
+        68: "Two or More Races",
+    }.iteritems()}
+
+
+def _my_proc_chunk(df, stats, skip_feats=set()):
+    is_old = stats['version'] in _old_format
+    do_common = not is_old and stats['do_common']
+
     # get NAICS category
-    if 'NAICPS' not in skip_feats:
-        df['NAICSP'] = df.NAICSP.map(naics_cat, na_action='ignore')
+    if 'NAICSP' not in skip_feats:
+        if is_old:
+            n = df.naicsp02.where(df.naicsp07.isnull(), df.naicsp07)
+        else:
+            n = df.NAICSP
+        df['NAICSP'] = n.map(naics_cat, na_action='ignore')
 
     # get OCC categories
     if 'OCCP' not in skip_feats:
-        df['OCCP'] = df.OCCP.astype(float).map(occ_cat, na_action='ignore')
+        if is_old:
+            o = df.occp02.where(df.occp10.isnull(), df.occp10)
+        else:
+            o = df.OCCP
+        df['OCCP'] = o.map(occ_cat, na_action='ignore')
 
     # get field of degree categories
     # was averaging these before, but that's a little complicated in this
     # code structure, so whatever
-    if 'FOD1P' not in skip_feats:
+    if 'FOD1P' not in skip_feats and 'FOD1P' in df:
         df['FOD1P'] = df.FOD1P.map(fod_cats, na_action='ignore')
-    if 'FOD2P' not in skip_feats:
+    if 'FOD2P' not in skip_feats and 'FOD2P' in df:
         df['FOD2P'] = df.FOD2P.map(fod_cats, na_action='ignore')
 
+    # these variables changed meanings; recode to old values
+    if do_common:
+        df['SCHG'] = df.SCHG.map(_schg_remap, na_action='ignore')
+        df['SCHL'] = df.SCHL.map(_schl_remap, na_action='ignore')
+        df['LANP'] = df.LANP.map(_lanp_new_remap, na_action='ignore')
+        df['ANC1P'] = df.ANC1P.map(_ancp_new_remap, na_action='ignore')
+        df['ANC2P'] = df.ANC2P.map(_ancp_new_remap, na_action='ignore')
+        df['RAC2P'] = df.RAC2P.map(_rac2p_new_remap, na_action='ignore')
+    elif is_old:
+        df['MIL'] = df.MIL.map(_mil_remap, na_action='ignore')
+        df['LANP'] = df.LANP.map(_lanp_old_remap, na_action='ignore')
+        df['ANC1P'] = df.ANC1P.map(_ancp_old_remap, na_action='ignore')
+        df['ANC2P'] = df.ANC2P.map(_ancp_old_remap, na_action='ignore')
+        df['RAC2P'] = df.RAC2P.map(_rac2p_old_remap, na_action='ignore')
+
+    # recoded variables
     if 'ANYHISP' not in skip_feats:
         df['ANYHISP'] = (df.HISP > 1).astype(int)
     if 'HASDEGREE' not in skip_feats:
         df['HASDEGREE'] = (df.SCHL >= 20).astype(int)
-
     if 'ETHNICITY' not in skip_feats:
-        # ETHNICITY is a recode
         df['ETHNICITY'] = df.RAC1P.where(df.HISP == 1,
                                          'hispanic').map(_ethnicity_map)
 
