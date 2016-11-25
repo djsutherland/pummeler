@@ -1,5 +1,6 @@
 from __future__ import division, print_function
 import argparse
+from functools import partial
 from glob import glob
 import os
 import sys
@@ -11,7 +12,7 @@ import pandas as pd
 import six
 
 from .featurize import get_embeddings
-from .misc import get_state_embeddings
+from .misc import get_state_embeddings, get_merged_embeddings
 from .reader import VERSIONS
 from .stats import load_stats, save_stats
 from .sort import sort_by_region
@@ -149,11 +150,18 @@ def main():
                          "otherwise 'embeddings'.")
 
     ############################################################################
-    states = subparsers.add_parser(
-        'state-features', help="Get state embeddings from existing embeddings.")
-    states.set_defaults(func=do_states)
+    merge = subparsers.add_parser(
+        'merge-features', help="Get embeddings for larger areas from existing "
+                               "embeddings.")
+    merge.set_defaults(func=do_merge)
 
-    io = states.add_argument_group('Input/output options')
+    g = merge.add_mutually_exclusive_group(required=True)
+    t = partial(g.add_argument, action='store_const', dest='merge_to')
+    t('--states', const='state', help="Group into state-level embeddings.")
+    t('--merged', const='merged',
+      help="Group into regions merged between 2000 and 2010 PUMAs.")
+
+    io = merge.add_argument_group('Input/output options')
     g = io.add_mutually_exclusive_group()
     g.add_argument('--npz', action='store_const', const='npz', dest='format')
     g.add_argument('--hdf5', action='store_const', const='h5', dest='format')
@@ -170,7 +178,7 @@ def main():
 
     io.add_argument('infile', help="The existing region embeddings.")
     io.add_argument('outfile', default=None, nargs='?',
-                    help="Where to output; default adds _states to the "
+                    help="Where to output; default adds _states/_merged to the "
                          "input file name.")
 
     ############################################################################
@@ -289,7 +297,7 @@ def do_export(args, parser):
             print("Fourier embeddings saved in {}".format(path))
 
 
-def do_states(args, parser):
+def do_merge(args, parser):
     if args.format is None:
         if args.infile.endswith('.npz'):
             args.format = 'npz'
@@ -309,8 +317,8 @@ def do_states(args, parser):
                 inf = args.infile[:-3]
             elif args.infile.endswith('.hdf5'):
                 inf = args.infile[:-5]
-        args.outfile = inf + '_states.{}'.format(
-            'npz' if args.format == 'npz' else 'h5')
+        args.outfile = inf + '_{}.{}'.format(
+            args.merge_to, 'npz' if args.format == 'npz' else 'h5')
 
     if args.format == 'npz':
         with np.load(args.infile) as f:
@@ -320,9 +328,15 @@ def do_states(args, parser):
             d = {k: v[()] for k, v in f.iteritems()}
     else:
         raise ValueError("confused by args.format {!r}".format(args.format))
-    state_embs = get_state_embeddings(d, os.path.dirname(args.infile))
 
-    _save_embeddings(args.outfile, state_embs, format=args.format,
+    if args.merge_to == 'state':
+        embs = get_state_embeddings(d)
+    elif args.merge_to == 'merged':
+        embs = get_merged_embeddings(d)
+    else:
+        raise ValueError("confused by args.merge_to {!r}".format(args.merge_to))
+
+    _save_embeddings(args.outfile, embs, format=args.format,
                      compressed=args.save_compressed)
 
 

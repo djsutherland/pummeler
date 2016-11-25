@@ -1,7 +1,9 @@
 import numpy as np
 
+from .data import geocode_data
 
-def get_state_embeddings(data_dict, dirname):
+
+def _get_merged_embeddings(data_dict, mapping_fn, out_prefix):
     region_names = data_dict['region_names']
     region_weights = data_dict['region_weights']
 
@@ -10,24 +12,27 @@ def get_state_embeddings(data_dict, dirname):
         region_weights = region_weights[:, np.newaxis]
 
     n_subsets = region_weights.shape[1]
-    state_names = sorted({r[:2] for r in region_names})
-    state_lookup = {n: i for i, n in enumerate(state_names)}
+
+    mapped_names = [mapping_fn(r) for r in region_names]
+    m_names = sorted(set(names))
+    m_names_lookup = {n: i for i, n in enumerate(names_order)}
 
     transform = np.zeros(
-        (len(state_names), len(region_names), n_subsets))
-    for r_i, (r, w) in enumerate(zip(region_names, region_weights)):
-        transform[state_lookup[r[:2]], r_i, :] = w
+        (len(m_names), len(region_names), n_subsets))
+    for r_i, (m, w) in enumerate(zip(mapped_names, region_weights)):
+        transform[m_names_lookup[m], r_i, :] = w
 
-    state_weights = transform.sum(axis=1)
-    transform /= state_weights[:, np.newaxis, :]
+    m_weights = transform.sum(axis=1)
+    transform /= m_weights[:, np.newaxis, :]
 
-    ret = {'state_names': state_names, 'state_weights': state_weights}
+    ret = {'{}_names'.format(out_prefix): m_names,
+           '{}_weights'.format(out_prefix): m_weights}
     for k in data_dict:
         if k.startswith('emb_'):
-            v = data_dict[k]
+            emb = data_dict[k]
             if squeezed:
-                v = v[:, :, np.newaxis]
-            ret[k] = np.einsum('grs, rfs -> gfs', transform, v)
+                emb = emb[:, :, np.newaxis]
+            ret[k] = np.einsum('grs, rfs -> gfs', transform, emb)
             if squeezed:
                 ret[k] = ret[k][:, :, 0]
         elif k in {'region_names', 'region_weights'}:
@@ -35,3 +40,13 @@ def get_state_embeddings(data_dict, dirname):
         else:
             ret[k] = data_dict[k]
     return ret
+
+
+def get_state_embeddings(data_dict):
+    state_mapper = lambda r: r[:2]
+    return _get_merged_embeddings(data_dict, state_mapper, 'state')
+
+
+def get_merged_embeddings(data_dict):
+    fn = geocode_data('region_superregion').merged_region.to_dict().__getitem__
+    return _get_merged_embeddings(data_dict, fn, 'merged')
