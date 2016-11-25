@@ -27,7 +27,12 @@ def _get_merged_embeddings(data_dict, mapping_fn, out_prefix):
         transform[m_names_lookup[m], r_i, :] = w
 
     m_weights = transform.sum(axis=1)
-    transform /= m_weights[:, np.newaxis, :]
+
+    # normalize transform so that its sum along axis 1 is 1
+    # this is kind of gross to allow for zero sums...maybe there's a better way
+    nz = np.broadcast_to((m_weights != 0)[:, np.newaxis, :], transform.shape)
+    transform[nz] /= \
+        np.broadcast_to(m_weights[:, np.newaxis, :], transform.shape)[nz]
 
     ret = {'{}_names'.format(out_prefix): m_names,
            '{}_weights'.format(out_prefix): m_weights}
