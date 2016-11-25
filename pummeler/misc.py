@@ -1,3 +1,6 @@
+from __future__ import print_function, division
+import sys
+
 import numpy as np
 
 from .data import geocode_data
@@ -14,8 +17,8 @@ def _get_merged_embeddings(data_dict, mapping_fn, out_prefix):
     n_subsets = region_weights.shape[1]
 
     mapped_names = [mapping_fn(r) for r in region_names]
-    m_names = sorted(set(names))
-    m_names_lookup = {n: i for i, n in enumerate(names_order)}
+    m_names = sorted(set(mapped_names))
+    m_names_lookup = {n: i for i, n in enumerate(m_names)}
 
     transform = np.zeros(
         (len(m_names), len(region_names), n_subsets))
@@ -29,12 +32,14 @@ def _get_merged_embeddings(data_dict, mapping_fn, out_prefix):
            '{}_weights'.format(out_prefix): m_weights}
     for k in data_dict:
         if k.startswith('emb_'):
+            print("Mapping {}...".format(k), end='', file=sys.stderr)
             emb = data_dict[k]
             if squeezed:
                 emb = emb[:, :, np.newaxis]
             ret[k] = np.einsum('grs, rfs -> gfs', transform, emb)
             if squeezed:
                 ret[k] = ret[k][:, :, 0]
+            print("done", file=sys.stderr)
         elif k in {'region_names', 'region_weights'}:
             pass
         else:
