@@ -319,7 +319,13 @@ def do_merge(args, parser):
                 inf = args.infile[:-5]
         args.outfile = inf + '_{}.{}'.format(
             args.merge_to, 'npz' if args.format == 'npz' else 'h5')
+        print("Output will go in {}".format(args.outfile))
 
+    if os.path.exists(args.outfile):
+        parser.error(
+            "{} already exists; delete it to force.".format(args.outfile))
+
+    print("Loading...", end='', file=sys.stderr)
     if args.format == 'npz':
         with np.load(args.infile) as f:
             d = dict(**f)
@@ -328,6 +334,7 @@ def do_merge(args, parser):
             d = {k: v[()] for k, v in f.iteritems()}
     else:
         raise ValueError("confused by args.format {!r}".format(args.format))
+    print('done', file=sys.stderr)
 
     if args.merge_to == 'state':
         embs = get_state_embeddings(d)
@@ -336,8 +343,10 @@ def do_merge(args, parser):
     else:
         raise ValueError("confused by args.merge_to {!r}".format(args.merge_to))
 
+    print("Saving...", end='', file=sys.stderr)
     _save_embeddings(args.outfile, embs, format=args.format,
                      compressed=args.save_compressed)
+    print('done', file=sys.stderr)
 
 
 def do_weight_counts(args, parser):

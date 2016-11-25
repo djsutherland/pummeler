@@ -2,6 +2,7 @@ from __future__ import print_function, division
 import sys
 
 import numpy as np
+from six.moves import xrange
 
 from .data import geocode_data
 
@@ -36,7 +37,18 @@ def _get_merged_embeddings(data_dict, mapping_fn, out_prefix):
             emb = data_dict[k]
             if squeezed:
                 emb = emb[:, :, np.newaxis]
-            ret[k] = np.einsum('grs, rfs -> gfs', transform, emb)
+
+            # need to do a matrix multiply for each subset:
+            #  - np.einsum('grs,rfs->gfs') would do this, but doesn't call BLAS
+            #  - rolling the subset axis to the front and calling np.matmul
+            #    would do this, but it just calls einsum anyway:
+            #    https://github.com/numpy/numpy/issues/7569
+
+            out = np.empty((n_subsets, len(m_names), emb.shape[1]))
+            for i in xrange(n_subsets):
+                np.dot(transform[:, :, i], emb[:, :, i], out=out[i])
+            ret[k] = np.rollaxis(out, 0, 3)
+
             if squeezed:
                 ret[k] = ret[k][:, :, 0]
             print("done", file=sys.stderr)
