@@ -157,7 +157,7 @@ def main():
 
     g = merge.add_mutually_exclusive_group(required=True)
     t = partial(g.add_argument, action='store_const', dest='merge_to')
-    t('--states', const='state', help="Group into state-level embeddings.")
+    t('--states', const='states', help="Group into state-level embeddings.")
     t('--merged', const='merged',
       help="Group into regions merged between 2000 and 2010 PUMAs.")
 
@@ -336,7 +336,7 @@ def do_merge(args, parser):
         raise ValueError("confused by args.format {!r}".format(args.format))
     print('done', file=sys.stderr)
 
-    if args.merge_to == 'state':
+    if args.merge_to == 'states':
         embs = get_state_embeddings(d)
     elif args.merge_to == 'merged':
         embs = get_merged_embeddings(d)
