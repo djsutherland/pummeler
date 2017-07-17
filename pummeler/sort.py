@@ -63,10 +63,18 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
                 if not checked_cols:
                     if columns is None:
                         columns = list(chunk.columns)
+
                         cols = set(chunk.columns)
-                        assert (cols - all_cols).issubset(
-                            {'ADJINC', 'ADJINC_orig'})
-                        assert not (all_cols - cols)
+                        extra = cols - all_cols - {'ADJINC', 'ADJINC_orig'}
+                        if extra:
+                            msg = ("Saw unknown columns; did you pass the "
+                                   "right PUMS file version?\n{}")
+                            raise ValueError(msg.format(', '.join(extra)))
+                        missing = all_cols - cols
+                        if missing:
+                            msg = ("Didn't see expected columns; did you pass "
+                                   "the right PUMS file version?\n{}")
+                            raise ValueError(msg.format(', '.join(missing)))
                     else:
                         assert list(chunk.columns) == columns
                     checked_cols = True
