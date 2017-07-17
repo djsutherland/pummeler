@@ -9,7 +9,7 @@ import progressbar as pb
 from scipy.linalg import qr
 from sklearn.metrics.pairwise import euclidean_distances
 import six
-from six.moves import xrange
+from six.moves import map, xrange
 
 from .data import fod_codes
 from .reader import VERSIONS
@@ -447,7 +447,7 @@ occ_codes = np.array(occ_codes)
 def occ_cat(x):
     return occ_names[occ_codes.searchsorted(float(x), side='right') - 1]
 
-fod_cats = {k: v for k, v in fod_codes().cat_code.iteritems()}
+fod_cats = {k: v for k, v in six.iteritems(fod_codes().cat_code)}
 
 
 def _my_proc_setup(stats, skip_feats, common_feats, do_check=True):
@@ -597,7 +597,7 @@ def _my_proc_setup(stats, skip_feats, common_feats, do_check=True):
     # obviously the value counts are a lie, but we don't actually use them
 
     stats['value_counts'] = OrderedDict(sorted(
-        (k, v.sort_index()) for k, v in vc.iteritems()))
+        (k, v.sort_index()) for k, v in six.iteritems(vc)))
 
     _my_proc_chunk(stats['sample'], stats)
 
@@ -617,14 +617,14 @@ _ethnicity_map = {
         5: 'amerindian', 6: 'asian', 7: 'amerindian', 8: 'other/biracial',
         9: 'other/biracial', 'hispanic': 'hispanic'}
 _old_format = frozenset({'2006-10', '2007-11'})
-_schg_remap = {float(k): float(v) for k, v in {  # new codes to old
+_schg_remap = {float(k): float(v) for k, v in six.iteritems({  # new codes to old
         1: 1, 2: 2,
         3: 3, 4: 3, 5: 3, 6: 3,
         7: 4, 8: 4, 9: 4, 10:4,
         11: 5, 12: 5, 13: 5, 14: 5,
         15: 6, 16: 7
-    }.iteritems()}
-_schl_remap = {float(k): float(v) for k, v in {  # new codes to old
+    })}
+_schl_remap = {float(k): float(v) for k, v in six.iteritems({  # new codes to old
         1: 1,
         2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2,
         8: 3, 9: 3,
@@ -633,22 +633,22 @@ _schl_remap = {float(k): float(v) for k, v in {  # new codes to old
         16: 9,
         17: 9,  # assuming GED falls under high school grad here?
         18: 10, 19: 11, 20: 12, 21: 13, 22: 14, 23: 15, 24: 16,
-    }.iteritems()}
-_mil_remap = {float(k): float(v) for k, v in {  # old codes to new
+    })}
+_mil_remap = {float(k): float(v) for k, v in six.iteritems({  # old codes to new
         1: 1,
         2: 2,
         3: 2,
         4: 3,
         5: 4,
-    }.iteritems()}
-_fer_remap = {float(k): float(v) for k, v in {  # new to old, sort of
+    })}
+_fer_remap = {float(k): float(v) for k, v in six.iteritems({  # new to old, sort of
         1: 1, 2: 2, 8: np.nan
         # code 8 is because a few of these results were suppressed in
         # some PUMAS in FL/GA/KS/MT/NC/OH/TX in 2012;
         # arbitrarily call these no, I guess
-    }.iteritems()}
+    })}
 
-_lanp_new_remap = {float(k): float(v) for k, v in {  # new to old
+_lanp_new_remap = {float(k): float(v) for k, v in six.iteritems({  # new to old
         602: 989,  # Krio => Other African
         675: 986,  # Sindhi => Other Asian
         689: 986,  # Uighur => Other Asian
@@ -656,12 +656,12 @@ _lanp_new_remap = {float(k): float(v) for k, v in {  # new to old
         750: 988,  # Micronesian => Other Pacific Island
         761: 988,  # Trukese => Other Pacific Island
         819: 993,  # Ojibwa => Other North American Indian
-    }.iteritems()}
-_lanp_old_remap = {float(k): float(v) for k, v in {  # new to old
+    })}
+_lanp_old_remap = {float(k): float(v) for k, v in six.iteritems({  # new to old
         966: 993,  # "American Indian" => Other North American Indian
-    }.iteritems()}
+    })}
 
-_ancp_new_remap = {float(k): float(v) for k, v in {
+_ancp_new_remap = {float(k): float(v) for k, v in six.iteritems({
          94:  87,  # Irish Scotch => Scotch Irish
         131: 176,  # Montenegrin => Yugoslavian
         146: 144,  # Moldavian => Romanian
@@ -679,17 +679,17 @@ _ancp_new_remap = {float(k): float(v) for k, v in {
         714: 799,  # Tibetan => Other Asian
         825: 899,  # Marshallese => Other Pacific
         940: 939,  # United States => American or United States
-    }.iteritems()}
-_ancp_old_remap = {float(k): float(v) for k, v in {
+    })}
+_ancp_old_remap = {float(k): float(v) for k, v in six.iteritems({
         794: 995,  # Amerasian => Mixture
         936: 935,  # Acadian => French Canadian
-    }.iteritems()}
+    })}
 
 for d in [_lanp_new_remap, _lanp_old_remap, _ancp_new_remap, _ancp_old_remap]:
-    for k in itertools.imap(float, xrange(1000)):
+    for k in map(float, xrange(1000)):
         d.setdefault(k, k)
 
-_rac2p_old_remap = {float(k): v for k, v in {
+_rac2p_old_remap = {float(k): v for k, v in six.iteritems({
          1: "White",
          2: "Black or African American",
          3: "Apache",
@@ -766,8 +766,8 @@ _rac2p_old_remap = {float(k): v for k, v in {
         65: "Other Native Hawaiian and Other Pacific Islander",
         66: "Some Other Race",
         67: "Two or More Races",
-    }.iteritems()}
-_rac2p_new_remap = {float(k): v for k, v in {
+    })}
+_rac2p_new_remap = {float(k): v for k, v in six.iteritems({
          1: "White",
          2: "Black or African American",
          3: "Apache",
@@ -838,7 +838,7 @@ _rac2p_new_remap = {float(k): v for k, v in {
         66: "Other Native Hawaiian and Other Pacific Islander",
         67: "Some Other Race",
         68: "Two or More Races",
-    }.iteritems()}
+    })}
 
 
 def _my_proc_chunk(df, stats, skip_feats=set()):

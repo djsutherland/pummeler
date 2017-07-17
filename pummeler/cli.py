@@ -331,7 +331,7 @@ def do_merge(args, parser):
             d = dict(**f)
     elif args.format == 'hdf5':
         with h5py.File(args.infile, 'r') as f:
-            d = {k: v[()] for k, v in f.iteritems()}
+            d = {k: v[()] for k, v in six.iteritems(f)}
     else:
         raise ValueError("confused by args.format {!r}".format(args.format))
     print('done', file=sys.stderr)
