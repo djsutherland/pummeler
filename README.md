@@ -5,8 +5,6 @@ This is a set of utilities for analyzing the American Community Survey's Public 
 > Flaxman, Wang, and Smola. Who Supported Obama in 2012? Ecological Inference through Distribution Regression. KDD 2015.
 > ([official](http://dx.doi.org/10.1145/2783258.2783300), [from author](http://sethrf.com/files/ecological.pdf))
 
-The package currently only supports the 2006-10 5-year estimates, but more will be added.
-
 
 ## Usage
 
@@ -19,14 +17,21 @@ If you prefer, you can also check out the source directory, which should work as
 
 ### Getting the census data
 
-First, download the data from the Census site. You probably want the "csv_pus.zip" file, [here](http://www2.census.gov/programs-surveys/acs/data/pums/2010/5-Year/csv_pus.zip) for the 2006-10 data (2.1 GB).
+First, download the data from the Census site. You probably want the "csv_pus.zip" file from whatever distribution you're using. The currently supported options are:
+
+- [2006-10](http://www2.census.gov/programs-surveys/acs/data/pums/2010/5-Year/csv_pus.zip) (2.1 GB); uses 2000 PUMAs.
+- [2007-11](http://www2.census.gov/programs-surveys/acs/data/pums/2011/5-Year/csv_pus.zip) (2.1 GB); uses 2000 PUMAs.
+- The 2012-14 subset of the [2010-14 file](https://www2.census.gov/programs-surveys/acs/data/pums/2014/5-Year/csv_pus.zip) (2.3 GB); this is the subset using 2010 PUMAs. (Pass `--version 2010-14_12-14` to `pummel`.)
+- [2015](https://www2.census.gov/programs-surveys/acs/data/pums/2015/1-Year/csv_pus.zip) (595 MB); uses 2010 PUMAs.
+- The 2012-15 subset of the [2012-15 file](https://www2.census.gov/programs-surveys/acs/data/pums/2015/5-Year/csv_pus.zip) (2.4GB); this is the subset using 2010 PUMAs. (Pass `--version 2011-15_12-15` to `pummel`.)
+- A gross manual merger of the 2012-14 and 15 data via [`make_12to15.py`](make_12to15.py); use the proper option above instead (which was only made available after we wanted it).
 
 
 ### Picking regions of analysis
 
 Election results are generally reported by counties; PUMS data are in their own special [Public Use Microdata Areas](https://www.census.gov/geo/reference/puma.html), which are related but not the same. This module ships with regions that merge all overlapping blockgroups / counties, found with [the MABLE/Geocorr tool](http://mcdc2.missouri.edu/websas/geocorr12.html), in Pandas dataframes stored in `pummeler/data/regions.h5`.
 
-Regions are named like `AL_00_01`, which means Alabama's region number 01 in the 2000 geography. If you use 2010 geographies (i.e. you're using ACS data of vintage after 2011 – not yet supported, but it will be), those regions are named `AL_10_01`.
+Regions are named like `AL_00_01`, which means Alabama's region number 01 in the 2000 geography, or `WY_10_02`, which is Wyoming's second region in the 2010 geography. There are also "superregions" which merge 2000 and 2010 geographies, named like `PA_merged_03`.
 
 **Note:** Alaska electoral districts are weird. For now, I just lumped all of Alaska into one region.
 
@@ -39,7 +44,7 @@ This was done in the Jupyter notebook [`notebooks/get regions.ipynb`](notebooks/
 
 First, we need to sort the features by region and collect statistics about them so we can do the featurization.
 
-Run `pummel sort -z csv_pus.zip SORT_DIR`. (A few extra options are shown if you pass `--help`.) This will:
+Run `pummel sort --version 2006-10 -z csv_pus.zip SORT_DIR`. (A few extra options are shown if you pass `--help`.) This will:
 
 - Make a bunch of files in `SORT_DIR` like `feats_AL_00_01.h5`, which contain basically the original features (except with the `ADJINC` adjustment applied to fields that need it to account for inflation) grouped by region. These are stored in HDF5 format with pandas, because it's much faster and takes less disk space than CSVs.
 
@@ -51,6 +56,8 @@ This will take a while (~15 minutes on my fast-ish laptop) and produce about 4GB
 ### Featurization
 
 Run `pummel featurize SORT_DIR`. (Again, you have a couple of options shown by `--help`.) This will get both linear embeddings (i.e. means) and random Fourier feature embeddings for each region, saving the output in `SORT_DIR/embeddings.npz`.
+
+You can also get features for demographic subsets with e.g. `--subsets 'SEX == 2 & AGEP > 45, SEX == 1 & PINCP < 20000'`.
 
 **NOTE:** As it turns out, with this featurization, linear embeddings seems to be comparable to random Fourier feature embeddings. You can save yourself a bunch of time and the world a smidgen of global warming if you skip them with `--skip-rbf`.
 
