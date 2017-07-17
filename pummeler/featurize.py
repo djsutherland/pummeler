@@ -46,8 +46,8 @@ def get_dummies(df, stats, num_feats=None, ret_df=True, skip_feats=None,
 
     reals = out[:, :len(real_feats)]
     reals[:] = df[real_feats]
-    reals[:] -= stats['real_means'][real_feats]
-    reals[:] /= stats['real_stds'][real_feats]
+    reals[:] -= stats['real_means'][real_feats].values
+    reals[:] /= stats['real_stds'][real_feats].values
     reals[np.isnan(reals)] = 0
     if ret_df:
         feat_names = list(real_feats)
