@@ -116,28 +116,32 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
 
                     for r, r_chunk in chunk.groupby(regions):
                         out = out_fmt.format(r)
-
-                        mode = 'a' if r in created_files else 'w'
-                        with h5py.File(out, mode) as f:
-                            ds = f.require_dataset('total_wt', (), np.int64)
-                            total_wt = ds[()] + r_chunk.PWGTP.sum()
-                            ds[()] = total_wt
-
                         try:
+                            mode = 'a' if r in created_files else 'w'
                             r_chunk.to_hdf(
                                 out, 'df', format='table', append=True,
-                                mode='a', complib='blosc', complevel=6)
+                                mode=mode, complib='blosc', complevel=6)
+                            old_wt = None
                         except ValueError:
                             # if new chunk has longer strings than previous
                             # one did, this will cause an error...instead of
-                            # hardcoding sizes, though, just re-write the data
+                            # hardcoding sizes, though, just re-write the data.
+                            # (Note that this happens in data validation, i.e.
+                            # nothing is written to the file yet.)
                             old = pd.read_hdf(out, 'df')
+                            with h5py.File(out, 'r') as f:
+                                old_wt = f['total_wt'][()]
                             new = pd.concat([old, r_chunk])
                             new.to_hdf(
                                 out, 'df', format='table', mode='w',
                                 complib='blosc', complevel=6)
-                            with h5py.File(out, 'a') as f:
-                                f['total_wt'] = total_wt
+
+                        with h5py.File(out, 'a') as f:
+                            ds = f.require_dataset('total_wt', (), np.int64)
+                            if old_wt is None:
+                                old_wt = ds[()]
+                            ds[()] = old_wt + r_chunk.PWGTP.sum()
+
                         created_files.add(r)
                 bar.update(read)
         bar.finish()
