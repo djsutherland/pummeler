@@ -35,7 +35,7 @@ Regions are named like `AL_00_01`, which means Alabama's region number 01 in the
 
 **Note:** Alaska electoral districts are weird. For now, I just lumped all of Alaska into one region.
 
-This was done in the Jupyter notebook [`notebooks/get regions.ipynb`](notebooks/get regions.ipynb). Centroids are calculated in [`notebooks/region centroids.ipynb`](notebooks/region centroids.ipynb), using a shapefile for counties [from here](https://geonet.esri.com/thread/24614).
+This was done in the Jupyter notebook [`notebooks/get regions.ipynb`](notebooks/get%20regions.ipynb). Centroids are calculated in [`notebooks/region centroids.ipynb`](notebooks/region%20centroids.ipynb), using a shapefile for counties [from here](https://geonet.esri.com/thread/24614).
 
 **TODO:** Could switch to precinct-level results, which should end up with more regions in the end. Results are available [here](http://projects.iq.harvard.edu/eda/data), including shapefiles if you go into the state-by-state section, so it shouldn't be *too* much work.
 
@@ -81,7 +81,7 @@ The original paper used Fastfood transforms instead of the default random Fourie
 
 ### Getting the election data
 
-This package includes results derived from [`huffpostdata/election-2012-results`](https://github.com/huffpostdata/election-2012-results), in `pummeler/data/2012-by-region.csv.gz`. That data was created in [`notebooks/election data by region.ipynb`](notebooks/election data by region.ipynb).
+This package includes results derived from [`huffpostdata/election-2012-results`](https://github.com/huffpostdata/election-2012-results), in `pummeler/data/2012-by-region.csv.gz`. That data was created in [`notebooks/election data by region.ipynb`](notebooks/election%20data%20by%20region.ipynb).
 
 There doesn't seem to be a good publicly-available county-level election results resource for years prior to 2012. If you get some, follow that notebook to get results in a similar format. (Your might have an institutional subscription to CQ Press's election data, for example. That source, though, doesn't use FIPS codes, so it'll be a little more annoying to line up; I might do that at some point.)
 
