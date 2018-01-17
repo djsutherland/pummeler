@@ -26,6 +26,7 @@ First, download the data from the Census site. You probably want the "csv_pus.zi
 - The 2012-15 subset of the [2012-15 file](https://www2.census.gov/programs-surveys/acs/data/pums/2015/5-Year/csv_pus.zip) (2.4GB); this is the subset using 2010 PUMAs. (Pass `--version 2011-15_12-15` to `pummel`.)
 - A gross manual merger of the 2012-14 and 15 data via [`make_12to15.py`](make_12to15.py); use the proper option above instead (which was only made available after we wanted it).
 
+It's relatively easy to add support for new versions; see the `VERSIONS` dictionary in [`pummeler.reader`](pummeler/reader.py).
 
 ### Picking regions of analysis
 
@@ -33,16 +34,16 @@ Election results are generally reported by counties; PUMS data are in their own 
 
 Regions are named like `AL_00_01`, which means Alabama's region number 01 in the 2000 geography, or `WY_10_02`, which is Wyoming's second region in the 2010 geography. There are also "superregions" which merge 2000 and 2010 geographies, named like `PA_merged_03`.
 
-**Note:** Alaska electoral districts are weird. For now, I just lumped all of Alaska into one region.
+**Note:** Alaskan electoral districts are weird. For now, I just lumped all of Alaska into one region.
 
 This was done in the Jupyter notebook [`notebooks/get regions.ipynb`](notebooks/get%20regions.ipynb). Centroids are calculated in [`notebooks/region centroids.ipynb`](notebooks/region%20centroids.ipynb), using a shapefile for counties [from here](https://geonet.esri.com/thread/24614).
 
-**TODO:** Could switch to precinct-level results, which should end up with more regions in the end. Results are available [here](http://projects.iq.harvard.edu/eda/data), including shapefiles if you go into the state-by-state section, so it shouldn't be *too* much work.
+**TODO:** Could switch to precinct-level results, which should end up with more regions in the end. 2012 results are available [here](http://projects.iq.harvard.edu/eda/data), including shapefiles if you go into the state-by-state section, so it shouldn't be *too* much work there. I haven't found national precinct-level results for the 2016 election yet, but maybe somebody's done it.
 
 
 ### Preprocessing
 
-First, we need to sort the features by region and collect statistics about them so we can do the featurization.
+First, we need to sort the features by region, and collect statistics about them so we can do the featurization later.
 
 Run `pummel sort --version 2006-10 -z csv_pus.zip SORT_DIR`. (A few extra options are shown if you pass `--help`.) This will:
 
@@ -59,13 +60,13 @@ Run `pummel featurize SORT_DIR`. (Again, you have a couple of options shown by `
 
 You can also get features for demographic subsets with e.g. `--subsets 'SEX == 2 & AGEP > 45, SEX == 1 & PINCP < 20000'`.
 
-**NOTE:** As it turns out, with this featurization, linear embeddings seems to be comparable to random Fourier feature embeddings. You can save yourself a bunch of time and the world a smidgen of global warming if you skip them with `--skip-rbf`.
+**NOTE:** As it turns out, with this featurization, linear embeddings seem to be comparable to random Fourier feature embeddings. You can save yourself a bunch of time and the world a smidgen of global warming if you skip them with `--skip-rbf`.
 
 On my laptop (with a quad-core Haswell i7), doing it with random Fourier features takes about an hour; the only-linear version takes about ten minutes. Make sure you're using a numpy linked to a fast multithreaded BLAS (like MKL or OpenBLAS; the easiest way to do this is to use the [Anaconda](https://www.continuum.io/downloads) Python distribution, which includes MKL by default); otherwise, this step will be much slower.
 
 If it's using too much memory, decrease `--chunksize`.
 
-The original paper used Fastfood transforms instead of the default random Fourier features used here, which with a good implementation will be faster. I'm not currently aware of a high-quality, easily-available Python-friendly implementation. A GPU implementation of regular random Fourier features would also help.
+The original paper used Fastfood transforms instead of the default random Fourier features used here, which with a good implementation will be faster. I'm not currently aware of a high-quality, easily-available Python-friendly implementation. A GPU implementation of regular random Fourier features could also help.
 
 `SORT_DIR/embeddings.npz`, which you can load with `np.load`, will then have:
 
@@ -85,6 +86,7 @@ This package includes results derived from [`huffpostdata/election-2012-results`
 
 There doesn't seem to be a good publicly-available county-level election results resource for years prior to 2012. If you get some, follow that notebook to get results in a similar format. (Your might have an institutional subscription to CQ Press's election data, for example. That source, though, doesn't use FIPS codes, so it'll be a little more annoying to line up; I might do that at some point.)
 
+**TODO:** add 2016 election data.
 
 ### Analysis
 
