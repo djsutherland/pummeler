@@ -7,7 +7,7 @@ import zipfile
 import h5py
 import numpy as np
 import pandas as pd
-import progressbar as pb  # should be progressbar2
+from tqdm import tqdm
 
 from .data import geocode_data
 from .reader import read_chunks, VERSIONS
@@ -51,12 +51,9 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
 
     for file in files:
         print("File {}".format(file), file=sys.stderr)
-        bar = pb.ProgressBar(max_value=pb.UnknownLength)
-        read = 0
-        bar.update(read)
 
         checked_cols = False
-        with opener(file, 'r') as f:
+        with opener(file, 'r') as f, tqdm() as bar:
             for chunk in read_chunks(f, voters_only=voters_only,
                                      adj_inc=adj_inc, chunksize=chunksize,
                                      version=version):
@@ -78,8 +75,8 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
                     else:
                         assert list(chunk.columns) == columns
                     checked_cols = True
-                read += chunk.shape[0]
 
+                n_total += chunk.shape[0]
                 wt_total += chunk.PWGTP.sum()
 
                 # components of mean / std for real-valued features
@@ -143,9 +140,7 @@ def sort_by_region(source, out_fmt, voters_only=True, adj_inc=True,
                             ds[()] = old_wt + r_chunk.PWGTP.sum()
 
                         created_files.add(r)
-                bar.update(read)
-        bar.finish()
-        n_total += read
+                bar.update(chunk.shape[0])
 
     if not_in_region:
         print("Records not in a region:")

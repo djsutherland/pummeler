@@ -5,11 +5,11 @@ import sys
 
 import numpy as np
 import pandas as pd
-import progressbar as pb
 from scipy.linalg import qr
 from sklearn.metrics.pairwise import euclidean_distances
 import six
 from six.moves import map, xrange
+from tqdm import tqdm
 
 from .data import fod_codes
 from .reader import VERSIONS
@@ -237,9 +237,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
         emb_extra = np.empty((len(files), m.n_extra, n_subsets))
     region_weights = np.empty((len(files), n_subsets))
 
-    bar = pb.ProgressBar(max_value=stats['n_total'])
-    bar.start()
-    read = 0
+    bar = tqdm(total=stats['n_total'])
     dummies = np.empty((chunksize, n_feats))
     for file_idx, file in enumerate(files):
         emb_lin_pieces = []
@@ -250,8 +248,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
         weights = []
         total_weights = 0
         for c in pd.read_hdf(file, chunksize=chunksize):
-            read += c.shape[0]
-            bar.update(read)
+            bar.update(c.shape[0])
 
             if do_my_proc:
                 _my_proc_chunk(c, stats, skip_feats=skip_feats)
@@ -324,7 +321,7 @@ def get_embeddings(files, stats, n_freqs=2048, freqs=None, bandwidth=None,
                 emb_extra[file_idx] += p * rs
 
         region_weights[file_idx] = total_weights
-    bar.finish()
+    bar.close()
 
     if squeeze_queries and n_subsets == 1:
         emb_lin = emb_lin[:, :, 0]

@@ -6,7 +6,7 @@ import os
 import h5py
 import numpy as np
 import pandas as pd
-import progressbar as pb
+from tqdm import tqdm
 
 from pummeler.reader import VERSIONS
 from pummeler.stats import load_stats, save_stats
@@ -92,7 +92,7 @@ def merge_12to14_15(dir_12to14, dir_15, out_dir):
 
     save_stats(os.path.join(out_dir, 'stats.h5'), stats)
 
-    for fn in pb.ProgressBar()(glob(os.path.join(dir_12to14, 'feats_*.h5'))):
+    for fn in tqdm(glob(os.path.join(dir_12to14, 'feats_*.h5'))):
         bn = os.path.basename(fn)
 
         a = pd.read_hdf(fn)
