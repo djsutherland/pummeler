@@ -449,11 +449,8 @@ fod_cats = {k: v for k, v in six.iteritems(fod_codes().cat_code)}
 
 def _my_proc_setup(stats, skip_feats, common_feats, do_check=True):
     stats['do_common'] = common_feats
-    new_pumas = stats['version'] in {'2010-14_12-14', '2012-15_manual', '2015'}
-    old_pumas = stats['version'] in {'2006-10', '2007-11'}
-    if common_feats:
-        assert new_pumas or old_pumas
-    else:
+    new_pumas = VERSIONS[stats['version']]['region_year'] == '10'
+    if not common_feats:
         assert new_pumas
 
     skip = lambda a: skip_feats.update(a.split())
