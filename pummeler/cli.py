@@ -56,8 +56,8 @@ def main():
     g.add_argument('--all-people', action='store_false', dest='voters_only',
                    help="Include all records from the files.")
     fmt.add_argument('--version', choices=sorted(VERSIONS), default='2006-10',
-                      help="The format of the ACS PUMS files in use; default "
-                           "%(default)s.")
+                     help="The format of the ACS PUMS files in use; default "
+                          "%(default)s.")
 
     ############################################################################
     featurize = subparsers.add_parser(
@@ -68,9 +68,11 @@ def main():
     io.add_argument('dir', help="The directory where `pummel sort` put stuff.")
     io.add_argument('outfile', nargs='?',
                     help='Where to put embeddings; default DIR/embeddings.npz.')
+    io.add_argument('--force', action='store_true', default=False,
+                    help="Force output even if OUTFILE already exists.")
     io.add_argument('--chunksize', type=int, default=2**13, metavar='LINES',
-                      help="How much of a region to process at a time; default "
-                           "%(default)s.")
+                    help="How much of a region to process at a time; default "
+                         "%(default)s.")
     g = io.add_mutually_exclusive_group()
     g.add_argument('--save-compressed', action='store_true', default=False,
                    help="Save embeddings in a compressed .npz. Requires "
@@ -215,8 +217,11 @@ def do_featurize(args, parser):
             args.dir, 'embeddings.{}'.format(ext.get(args.format, args.format)))
 
     if os.path.exists(args.outfile):
-        parser.error(("Outfile {} exists. Delete it first if you really want "
-                      "to override").format(args.outfile))
+        if args.force:
+            os.remove(args.outfile)
+        else:
+            parser.error(("Outfile {} exists. Delete it first or pass --force "
+                          "to override it.").format(args.outfile))
     if not os.path.isdir(os.path.dirname(args.outfile)):
         parser.error("Directory {} doesn't exist; is that what you meant?"
                      .format(os.path.dirname(args.outfile)))
