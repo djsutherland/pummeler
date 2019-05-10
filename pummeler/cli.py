@@ -211,7 +211,8 @@ def do_sort(args, parser):
 def do_featurize(args, parser):
     if args.outfile is None:
         ext = {'hdf5': 'h5', 'npz': 'npz'}
-        args.outfile = os.path.join(args.dir, ext.get(args.format, args.format))
+        args.outfile = os.path.join(
+            args.dir, 'embeddings.{}'.format(ext.get(args.format, args.format)))
 
     if os.path.exists(args.outfile):
         parser.error(("Outfile {} exists. Delete it first if you really want "
