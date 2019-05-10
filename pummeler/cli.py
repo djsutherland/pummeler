@@ -249,6 +249,11 @@ def _save_embeddings(outfile, res, format='npz', compressed=False):
         elif format == 'hdf5':
             with h5py.File(outfile, 'w') as f:
                 for k, v in six.iteritems(res):
+                    # avoid crashing on numpy U types
+                    v = np.asanyarray(v)
+                    if v.dtype.kind == 'U':
+                        v = v.astype(object)
+
                     if k in {'emb_lin', 'emb_extra'}:
                         f.create_dataset(
                             k, data=v, compression='gzip', shuffle=True)
