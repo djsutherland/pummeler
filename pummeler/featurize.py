@@ -946,8 +946,8 @@ def my_additive_setup(stats, skip_feats, seed):
     m.n_extra = len(m.extra_names)
 
     samp = np.array(stats['sample'][m.rff_reals], copy=True)
-    samp -= stats['real_means'][m.rff_reals]
-    samp /= stats['real_stds'][m.rff_reals]
+    samp -= stats['real_means'][m.rff_reals][np.newaxis, :]
+    samp /= stats['real_stds'][m.rff_reals][np.newaxis, :]
     samp[np.isnan(samp)] = 0
 
     m.one_bws = [
