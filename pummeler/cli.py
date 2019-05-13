@@ -254,19 +254,22 @@ def _save_embeddings(outfile, res, format='npz', compressed=False):
         elif format == 'hdf5':
             with h5py.File(outfile, 'w') as f:
                 for k, v in six.iteritems(res):
+                    if k == 'subset_queries' and v is None:
+                        continue
+
+                    kwargs = {}
+
                     # avoid crashing on numpy U types
                     v = np.asanyarray(v)
                     if v.dtype.kind == 'U':
-                        v = v.astype(object)
+                        kwargs['dtype'] = h5py.special_dtype(vlen=six.text_type)
 
                     if k in {'emb_lin', 'emb_extra'}:
-                        f.create_dataset(
-                            k, data=v, compression='gzip', shuffle=True)
-                    elif k == 'subset_queries':
-                        if v is not None:
-                            f[k] = v
-                    else:
-                        f[k] = v
+                        kwargs['compression'] = 'gzip'
+                        kwargs['shuffle'] = True
+
+                    d = f.create_dataset(k, shape=v.shape, **kwargs)
+                    d[:] = v  # data= doesn't work with unicode apparently...
         else:
             raise ValueError("Unknown output format {!r}".format(format))
     except:
