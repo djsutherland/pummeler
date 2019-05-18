@@ -269,7 +269,7 @@ def _save_embeddings(outfile, res, format='npz', compressed=False):
                         kwargs['shuffle'] = True
 
                     d = f.create_dataset(k, shape=v.shape, **kwargs)
-                    d[:] = v  # data= doesn't work with unicode apparently...
+                    d[()] = v  # data= doesn't work with unicode apparently...
         else:
             raise ValueError("Unknown output format {!r}".format(format))
     except:
