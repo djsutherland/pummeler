@@ -194,7 +194,6 @@ VERSIONS = {
 }
 
 VERSIONS["2007-11"] = VERSIONS["2006-10"]
-VERSIONS["2012-15_manual"] = VERSIONS["2010-14_12-14"]
 
 VERSIONS["2011-15_12-15"] = v = VERSIONS["2010-14_12-14"].copy()
 v["alloc_flags"] = sorted(

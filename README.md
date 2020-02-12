@@ -26,7 +26,6 @@ First, download the data from the Census site. You probably want the "csv_pus.zi
 - The 2012-14 subset of the [2010-14 file](https://www2.census.gov/programs-surveys/acs/data/pums/2014/5-Year/csv_pus.zip) (2.3 GB); this is the subset using 2010 PUMAs. (Pass `--version 2010-14_12-14` to `pummel`.)
 - [2015](https://www2.census.gov/programs-surveys/acs/data/pums/2015/1-Year/csv_pus.zip) (595 MB); uses 2010 PUMAs.
 - The 2012-15 subset of the [2012-15 file](https://www2.census.gov/programs-surveys/acs/data/pums/2015/5-Year/csv_pus.zip) (2.4GB); this is the subset using 2010 PUMAs. (Pass `--version 2011-15_12-15` to `pummel`.)
-- A gross manual merger of the 2012-14 and 15 data via [`make_12to15.py`](make_12to15.py); use the proper option above instead (which was only made available after we wanted it).
 
 It's relatively easy to add support for new versions; see the `VERSIONS` dictionary in [`pummeler.reader`](pummeler/reader.py).
 
