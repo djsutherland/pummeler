@@ -10,7 +10,7 @@ This is a set of utilities for analyzing the American Community Survey's Public 
 
 ### Installation
 
-Now requires Python 3.
+Now requires Python 3.6 or higher.
 
 Use `pip install pummeler`; it will then be available via `import pummler` and install a `pummel` script.
 
@@ -51,7 +51,7 @@ First, we need to sort the features by region, and collect statistics about them
 
 Run `pummel sort --version 2006-10 -z csv_pus.zip SORT_DIR`. (A few extra options are shown if you pass `--help`.) This will:
 
-- Make a bunch of files in `SORT_DIR` like `feats_AL_00_01.h5`, which contain basically the original features (except with the `ADJINC` adjustment applied to fields that need it to account for inflation) grouped by region. These are stored in HDF5 format with pandas, because it's much faster and takes less disk space than CSVs.
+- Make a bunch of files in `SORT_DIR` like `feats_AL_00_01.h5`, which contain basically the original features (except with the `ADJINC` adjustment applied to fields that need it to account for inflation) grouped by region. These are stored in HDF5 format with pandas, because it's much faster and takes less disk space than CSVs. (If you only want state-level analysis, `--region-type state` will make one file per state; `--region-type puma` will split per PUMA instead of the default `puma_county` regions.)
 
 - Makes a file `SORT_DIR/stats.h5` containing means and standard deviations of the real-valued features, counts of the different values for the categorical features, and a random sample of all the features.
 

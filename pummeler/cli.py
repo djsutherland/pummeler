@@ -42,6 +42,14 @@ def main():
     io.add_argument("out_dir", help="Directory for the sorted features.")
 
     io.add_argument(
+        "--region-type",
+        "-r",
+        choices=["puma_county", "puma", "state"],
+        default="puma_county",
+        help="How to split up the outputs; default %(default)s.",
+    )
+
+    io.add_argument(
         "--chunksize",
         type=int,
         default=10 ** 5,
@@ -246,7 +254,7 @@ def main():
     ############################################################################
     merge = subparsers.add_parser(
         "merge-features",
-        help="Get embeddings for larger areas from existing " "embeddings.",
+        help="Get embeddings for larger areas from existing embeddings.",
     )
     merge.set_defaults(func=do_merge)
 
@@ -318,6 +326,7 @@ def do_sort(args, parser):
         adj_inc=True,
         version=args.version,
         chunksize=args.chunksize,
+        region_type=args.region_type,
     )
     save_stats(os.path.join(args.out_dir, "stats.h5"), stats)
 

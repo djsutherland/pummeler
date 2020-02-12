@@ -23,6 +23,7 @@ def sort_by_region(
     chunksize=10 ** 5,
     n_to_sample=5000,
     stats_only=False,
+    region_type="puma_county",
 ):
     info = VERSIONS[version]
     all_cols = set(
@@ -35,8 +36,24 @@ def sort_by_region(
     real_feats = info["real_feats"]
     discrete = info["discrete_feats"] + info["alloc_flags"]
 
-    key = "puma_region_{}".format(info["region_year"])
-    puma_to_region = geocode_data(key).region.to_dict()
+    if region_type == "puma_county":
+        key = f"puma_region_{info['region_year']}"
+        puma_to_region = geocode_data(key).region.to_dict().get
+    elif region_type == "puma":
+        stab_to_st = geocode_data("state_to_stab").stab.to_dict()
+
+        def puma_to_region(st_puma):
+            st, puma = st_puma
+            return f"{stab_to_st[st]}_{puma}"
+
+    elif region_type == "state":
+        stab_to_st = geocode_data("state_to_stab").stab.to_dict()
+
+        def puma_to_region(st_puma):
+            st, puma = st_puma
+            return stab_to_st[st]
+    else:
+        raise ValueError(f"Bad region_type {region_type!r}")
 
     created_files = set()
 
@@ -145,7 +162,7 @@ def sort_by_region(
                     if not stats_only:
                         regions = np.empty(chunk.shape[0], dtype=object)
                         for i, tup in enumerate(zip(chunk.ST, chunk.PUMA)):
-                            regions[i] = r = puma_to_region.get(tup)
+                            regions[i] = r = puma_to_region(tup)
                             if r is None:
                                 not_in_region[tup] += 1
 
