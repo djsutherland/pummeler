@@ -1,12 +1,13 @@
 import pandas as pd
 
 
-weirds = (
-    "indp02 indp07 INDP "
-    "OCCP occp02 occp10 OCCP10 OCCP12 "
-    "socp00 socp10 SOCP10 SOCP12 SOCP "
-    "naicsp02 naicsp07 NAICSP".split()
-)
+weirds = """
+    SERIALNO
+    indp02 indp07 INDP
+    OCCP occp02 occp10 OCCP10 OCCP12
+    socp00 socp10 SOCP10 SOCP12 SOCP
+    naicsp02 naicsp07 NAICSP
+""".split()
 
 
 def read_chunks(fname, version, chunksize=10 ** 5, voters_only=False, adj_inc=None):
@@ -65,14 +66,17 @@ def read_chunks(fname, version, chunksize=10 ** 5, voters_only=False, adj_inc=No
         yield chunk
 
 
-_s = lambda s: sorted(s.split())
+def _s(s):
+    return sorted(s.split())
 
-VERSIONS = {
-    "2006-10": {
-        "weight_cols": ["PWGTP"] + ["PWGTP{}".format(i) for i in range(1, 81)],
-        "meta_cols": "RT SPORDER serialno PUMA ST".split(),
-        "discrete_feats": _s(
-            """
+
+VERSIONS = {}
+
+VERSIONS["2006-10"] = {
+    "weight_cols": ["PWGTP"] + ["PWGTP{}".format(i) for i in range(1, 81)],
+    "meta_cols": "RT SPORDER serialno PUMA ST".split(),
+    "discrete_feats": _s(
+        """
             CIT COW ENG FER GCL GCM GCR JWRIP JWTR LANX MAR MIG MIL MLPA MLPB
             MLPC MLPD MLPE MLPF MLPG MLPH MLPI MLPJ MLPK NWAB NWAV NWLA NWLK
             NWRE RELP SCH SCHG SCHL SEX WKL WKW ANC ANC1P ANC2P DECADE DRIVESP
@@ -80,28 +84,30 @@ VERSIONS = {
             NATIVITY NOP OC occp02 occp10 PAOC POBP POWPUMA POWSP QTRBIR RAC1P
             RAC2P RAC3P RACAIAN RACASN RACBLK RACNHPI RACSOR RACWHT RC SFN SFR
             socp00 socp10 VPS WAOB"""
-        ),
-        "alloc_flags": _s(
-            """
+    ),
+    "alloc_flags": _s(
+        """
             FAGEP FANCP FCITP FCOWP FENGP FESRP FFERP FGCLP FGCMP FGCRP
             FHISP FINDP FINTP FJWDP FJWMNP FJWRIP FJWTRP FLANP FLANXP FMARP
             FMIGP FMIGSP FMILPP FMILSP FOCCP FOIP FPAP FPOBP FPOWSP FRACP
             FRELP FRETP FSCHGP FSCHLP FSCHP FSEMP FSEXP FSSIP FSSP FWAGP
             FWKHP FWKLP FWKWP FYOEP"""
-        ),
-        "real_feats": _s(
-            """
+    ),
+    "real_feats": _s(
+        """
             AGEP INTP JWMNP OIP PAP RETP SEMP SSIP SSP WAGP WKHP YOEP JWAP
             JWDP PERNP PINCP POVPIP RACNUM"""
-        ),
-        "to_adjinc": _s("INTP OIP PAP PERNP PINCP RETP SEMP SSIP SSP WAGP"),
-        "region_year": "00",
-    },
-    "2010-14_12-14": {
-        "weight_cols": ["PWGTP"] + ["PWGTP{}".format(i) for i in range(1, 81)],
-        "meta_cols": _s("RT SPORDER serialno PUMA ST"),
-        "alloc_flags": _s(
-            """
+    ),
+    "to_adjinc": _s("INTP OIP PAP PERNP PINCP RETP SEMP SSIP SSP WAGP"),
+    "region_year": "00",
+}
+VERSIONS["2007-11"] = VERSIONS["2006-10"]
+
+VERSIONS["2010-14_12-14"] = {
+    "weight_cols": ["PWGTP"] + ["PWGTP{}".format(i) for i in range(1, 81)],
+    "meta_cols": _s("RT SPORDER serialno PUMA ST"),
+    "alloc_flags": _s(
+        """
             FAGEP FCITP FCITWP FCOWP FDDRSP FDEARP FDEYEP FDOUTP FDPHYP
             FDRATP FDRATXP FDREMP FENGP FESRP FFERP FFODP FGCLP FGCMP FGCRP
             FHINS1P FHINS2P FHINS3C FHINS3P FHINS4C FHINS4P FHINS5C FHINS5P
@@ -110,9 +116,9 @@ VERSIONS = {
             FMIGSP FMILPP FMILSP FOCCP FOIP FPAP FPOBP FPOWSP FRACP FRELP
             FRETP FSCHGP FSCHLP FSCHP FSEMP FSEXP FSSIP FSSP FWAGP FWKHP
             FWKLP FWKWP FWRKP FYOEP"""
-        ),
-        "discrete_feats": _s(
-            """
+    ),
+    "discrete_feats": _s(
+        """
             CIT COW DDRS DEAR DEYE DOUT DPHY DRAT DRATX DREM ENG FER GCL GCM
             GCR HINS1 HINS2 HINS3 HINS4 HINS5 HINS6 HINS7 JWRIP JWTR LANX
             MAR MARHD MARHM MARHT MARHW MARHYP MIG MIL MLPA MLPB MLPCD MLPE
@@ -122,56 +128,62 @@ VERSIONS = {
             NOP OC OCCP PAOC POBP POWPUMA POWSP PRIVCOV PUBCOV QTRBIR RAC1P
             RAC2P RAC3P RACAIAN RACASN RACBLK RACNHPI RACSOR RACWHT RC SCIENGP
             SCIENGRLP SFN SFR SOCP VPS WAOB"""
-        ),
-        "real_feats": _s(
-            """
+    ),
+    "real_feats": _s(
+        """
             AGEP CITWP INTP JWMNP OIP PAP RETP SEMP SSIP SSP WAGP WKHP YOEP
             JWAP JWDP PERNP PINCP POVPIP RACNUM"""
-        ),
-        "to_adjinc": _s("INTP OIP PAP PERNP PINCP RETP SEMP SSIP SSP WAGP"),
-        "drop_feats": _s(
-            """
+    ),
+    "to_adjinc": _s("INTP OIP PAP PERNP PINCP RETP SEMP SSIP SSP WAGP"),
+    "drop_feats": _s(
+        """
             ANC1P05 ANC2P05 FANCP LANP05 MARHYP05 MIGPUMA00 MIGSP05 POBP05
             POWPUMA00 POWSP05 RAC2P05 RAC3P05 SOCP10 YOEP05 CITWP05 OCCP10"""
-        ),
-        # Always blank for 12-14 data
-        "renames": {
-            "ANC1P12": "ANC1P",
-            "ANC2P12": "ANC2P",
-            "LANP12": "LANP",
-            "MARHYP12": "MARHYP",
-            "MIGPUMA10": "MIGPUMA",
-            "MIGSP12": "MIGSP",
-            "OCCP12": "OCCP",
-            "POBP12": "POBP",
-            "POWPUMA10": "POWPUMA",
-            "POWSP12": "POWSP",
-            "RAC2P12": "RAC2P",
-            "RAC3P12": "RAC3P",
-            "SOCP12": "SOCP",
-            "YOEP12": "YOEP",
-            "CITWP12": "CITWP",
-        },
-        "region_year": "10",
-        "puma_subset": True,
+    ),
+    # Always blank for 12-14 data
+    "renames": {
+        "ANC1P12": "ANC1P",
+        "ANC2P12": "ANC2P",
+        "LANP12": "LANP",
+        "MARHYP12": "MARHYP",
+        "MIGPUMA10": "MIGPUMA",
+        "MIGSP12": "MIGSP",
+        "OCCP12": "OCCP",
+        "POBP12": "POBP",
+        "POWPUMA10": "POWPUMA",
+        "POWSP12": "POWSP",
+        "RAC2P12": "RAC2P",
+        "RAC3P12": "RAC3P",
+        "SOCP12": "SOCP",
+        "YOEP12": "YOEP",
+        "CITWP12": "CITWP",
     },
-    "2015": {
-        "weight_cols": ["PWGTP"] + ["PWGTP{}".format(i) for i in range(1, 81)],
-        "meta_cols": _s("RT SPORDER SERIALNO PUMA ST"),
-        "alloc_flags": _s(
-            """
+    "region_year": "10",
+    "puma_subset": True,
+}
+
+VERSIONS["2011-15_12-15"] = v = VERSIONS["2010-14_12-14"].copy()
+v["alloc_flags"] = sorted(
+    v["alloc_flags"] + "FDISP FPINCP FPUBCOVP FPERNP FPRIVCOVP".split()
+)
+
+VERSIONS["2012-16"] = {
+    "weight_cols": ["PWGTP"] + ["PWGTP{}".format(i) for i in range(1, 81)],
+    "meta_cols": _s("RT SPORDER SERIALNO PUMA ST"),
+    "alloc_flags": _s(
+        """
             FAGEP FANCP FCITP FCITWP FCOWP FDDRSP FDEARP FDEYEP FDISP FDOUTP
             FDPHYP FDRATP FDRATXP FDREMP FENGP FESRP FFERP FFODP FGCLP FGCMP
-            FGCRP FHICOVP FHINS1P FHINS2P FHINS3C FHINS3P FHINS4C FHINS4P
+            FGCRP FHINS1P FHINS2P FHINS3C FHINS3P FHINS4C FHINS4P
             FHINS5C FHINS5P FHINS6P FHINS7P FHISP FINDP FINTP FJWDP FJWMNP
             FJWRIP FJWTRP FLANP FLANXP FMARHDP FMARHMP FMARHTP FMARHWP FMARHYP
             FMARP FMIGP FMIGSP FMILPP FMILSP FOCCP FOIP FPAP FPERNP FPINCP
             FPOBP FPOWSP FPRIVCOVP FPUBCOVP FRACP FRELP FRETP FSCHGP FSCHLP
             FSCHP FSEMP FSEXP FSSIP FSSP FWAGP FWKHP FWKLP FWKWP FWRKP
             FYOEP"""
-        ),
-        "discrete_feats": _s(
-            """
+    ),
+    "discrete_feats": _s(
+        """
             CIT COW DDRS DEAR DEYE DOUT DPHY DRAT DRATX DREM ENG FER GCL GCM
             GCR HINS1 HINS2 HINS3 HINS4 HINS5 HINS6 HINS7 JWRIP JWTR LANX MAR
             MARHD MARHM MARHT MARHW MARHYP MIG MIL MLPA MLPB MLPCD MLPE MLPFG
@@ -181,21 +193,22 @@ VERSIONS = {
             PAOC POBP POWPUMA POWSP PRIVCOV PUBCOV QTRBIR RAC1P RAC2P RAC3P
             RACAIAN RACASN RACBLK RACNH RACPI RACSOR RACWHT RC SCIENGP SCIENGRLP
             SFN SFR SOCP VPS WAOB"""
-        ),
-        "real_feats": _s(
-            """
+    ),
+    "real_feats": _s(
+        """
             AGEP CITWP INTP JWMNP OIP PAP RETP SEMP SSIP SSP WAGP WKHP YOEP JWAP
             JWDP PERNP PINCP POVPIP RACNUM"""
-        ),
-        "to_adjinc": _s("INTP OIP PAP PERNP PINCP RETP SEMP SSIP SSP WAGP"),
-        "renames": {"pwgtp{}".format(i): "PWGTP{}".format(i) for i in range(1, 81)},
-        "region_year": "10",
-    },
+    ),
+    "to_adjinc": _s("INTP OIP PAP PERNP PINCP RETP SEMP SSIP SSP WAGP"),
+    "renames": {"pwgtp{}".format(i): "PWGTP{}".format(i) for i in range(1, 81)},
+    "region_year": "10",
 }
 
-VERSIONS["2007-11"] = VERSIONS["2006-10"]
 
-VERSIONS["2011-15_12-15"] = v = VERSIONS["2010-14_12-14"].copy()
-v["alloc_flags"] = sorted(
-    v["alloc_flags"] + "FDISP FPINCP FPUBCOVP FPERNP FPRIVCOVP".split()
-)
+VERSIONS["2013-17"] = v = VERSIONS["2012-16"].copy()
+v["alloc_flags"] = sorted(v["alloc_flags"] + ["FHICOVP"])
+v["drop_feats"] = sorted(v.get("drop_feats", []) + "REGION DIVISION".split())
+
+VERSIONS["2014-18"] = v = VERSIONS["2013-17"].copy()
+
+VERSIONS["2015"] = VERSIONS["2013-17"].copy()

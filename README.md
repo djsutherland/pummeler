@@ -25,7 +25,10 @@ First, download the data from the Census site. You probably want the "csv_pus.zi
 - [2007-11](http://www2.census.gov/programs-surveys/acs/data/pums/2011/5-Year/csv_pus.zip) (2.1 GB); uses 2000 PUMAs.
 - The 2012-14 subset of the [2010-14 file](https://www2.census.gov/programs-surveys/acs/data/pums/2014/5-Year/csv_pus.zip) (2.3 GB); this is the subset using 2010 PUMAs. (Pass `--version 2010-14_12-14` to `pummel`.)
 - [2015](https://www2.census.gov/programs-surveys/acs/data/pums/2015/1-Year/csv_pus.zip) (595 MB); uses 2010 PUMAs.
-- The 2012-15 subset of the [2012-15 file](https://www2.census.gov/programs-surveys/acs/data/pums/2015/5-Year/csv_pus.zip) (2.4GB); this is the subset using 2010 PUMAs. (Pass `--version 2011-15_12-15` to `pummel`.)
+- The 2012-15 subset of the [2011-15 file](https://www2.census.gov/programs-surveys/acs/data/pums/2015/5-Year/csv_pus.zip) (2.4GB); this is the subset using 2010 PUMAs. (Pass `--version 2011-15_12-15` to `pummel`.)
+- [2012-16](https://www2.census.gov/programs-surveys/acs/data/pums/2016/5-Year/csv_pus.zip) (2.3 GB); uses 2010 PUMAs.
+- [2013-17](https://www2.census.gov/programs-surveys/acs/data/pums/2017/5-Year/csv_pus.zip) (2.3 GB); uses 2010 PUMAs.
+- [2014-18](https://www2.census.gov/programs-surveys/acs/data/pums/2018/5-Year/csv_pus.zip) (2.1 GB); uses 2010 PUMAs.
 
 It's relatively easy to add support for new versions; see the `VERSIONS` dictionary in [`pummeler.reader`](pummeler/reader.py).
 
