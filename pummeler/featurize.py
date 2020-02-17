@@ -154,7 +154,7 @@ class Featurizer:
         else:
             if skip_alloc_flags:
                 skip_feats.update(info["alloc_flags"])
-            self.skip_feats = skip_feats
+        self.skip_feats = skip_feats
 
         self.n_feats = _num_feats(stats, skip_feats=self.skip_feats)
 
