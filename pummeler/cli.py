@@ -10,7 +10,7 @@ import h5py
 import numpy as np
 import pandas as pd
 
-from .featurize import get_embeddings
+from .featurize import get_embeddings, LinearFeaturizer, RFFFeaturizer, MyAdditiveExtras
 from .misc import get_state_embeddings, get_merged_embeddings
 from .reader import VERSIONS
 from .stats import load_stats, save_stats
@@ -362,24 +362,78 @@ def do_featurize(args, parser):
     files = glob(os.path.join(args.dir, "feats_*.h5"))
     region_names = [os.path.basename(f)[6:-3] for f in files]
 
-    res = get_embeddings(
+    if args.do_my_proc or args.do_my_additive:
+        from .my_proc import MyPreprocessor
+
+        preprocessor = MyPreprocessor(common_feats=args.common_feats)
+    else:
+        preprocessor = None
+
+    def skipify(*a, **kwargs):
+        return partial(
+            *a,
+            skip_feats=args.skip_feats,
+            skip_alloc_flags=args.skip_alloc_flags,
+            **kwargs
+        )
+
+    rs = (
+        np.random.mtrand._rand
+        if args.seed is None
+        else np.random.RandomState(args.seed)
+    )
+
+    featurizers = [skipify(LinearFeaturizer)]
+    if not args.skip_rbf:
+        featurizers.append(
+            skipify(
+                RFFFeaturizer,
+                seed=rs.randint(2 ** 23),
+                n_freqs=args.n_freqs,
+                bandwidth=args.bandwidth,
+                orthogonal=args.rff_orthogonal,
+            )
+        )
+    if args.do_my_additive:
+        featurizers.append(skipify(MyAdditiveExtras, seed=rs.randint(2 ** 23)))
+
+    embeddings, region_weights, featurizers = get_embeddings(
         files=files,
         stats=stats,
+        featurizers=featurizers,
         chunksize=args.chunksize,
-        skip_rbf=args.skip_rbf,
-        skip_feats=args.skip_feats,
         subsets=args.subsets,
-        skip_alloc_flags=args.skip_alloc_flags,
-        seed=args.seed,
-        n_freqs=args.n_freqs,
-        bandwidth=args.bandwidth,
-        rff_orthogonal=args.rff_orthogonal,
-        do_my_proc=args.do_my_proc,
-        do_my_additive=args.do_my_additive,
-        common_feats=args.common_feats,
+        preprocessor=preprocessor,
     )
-    res["region_names"] = region_names
-    res["subset_queries"] = args.subsets
+
+    res = {
+        "region_names": region_names,
+        "region_weights": region_weights,
+        "subset_queries": args.subsets,
+        "emb_lin": embeddings[0],
+        "feature_names": featurizers[0].feat_names,
+        "feature_identities": featurizers[0].feat_ids,
+        "keep_multilevels": featurizers[0].keep_multilevels,
+    }
+    if not args.skip_rbf:
+        res["emb_rff"] = embeddings[1]
+        res["freqs"] = featurizers[1].freqs
+        res["bandwidth"] = featurizers[1].bandwidth
+    if args.do_my_additive:
+        res["emb_extra"] = embeddings[-1]
+        m = featurizers[-1]
+        res["extra_names"] = m.feat_names
+        res["extra_identities"] = m.feat_identities
+        res["rff_reals"] = m.rff_reals
+        res["rff_pairs"] = m.rff_pairs
+        res["rff_discrete_pairs"] = m.rff_discrete_pairs
+        res["discrete_pairs"] = m.discrete_pairs
+        res["one_bws"] = m.one_bws
+        res["pair_bws"] = m.pair_bws
+        res["one_freqs"] = m.one_freqs
+        res["pair_freqs"] = m.pair_freqs
+        res["extra_keep_multilevels"] = m.keep_multilevels
+
     _save_embeddings(
         args.outfile, res, format=args.format, compressed=args.save_compressed
     )
