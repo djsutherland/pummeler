@@ -234,5 +234,6 @@ def sort_by_region(
     stats["n_total"] = n_total
     stats["wt_total"] = wt_total
     stats["version"] = version
+    stats["version_info"] = info
     stats["sample"] = pd.DataFrame([t for r, t in reservoir], columns=columns)
     return stats
