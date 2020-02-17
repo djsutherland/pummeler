@@ -147,7 +147,7 @@ class Featurizer:
             assert only_feats.isdisjoint(skip_feats)
             all_feats = (
                 set(info["real_feats"])
-                | set(stats["discrete_feats"])
+                | set(info["discrete_feats"])
                 | set(info["alloc_flags"])
             )
             skip_feats = all_feats - only_feats
