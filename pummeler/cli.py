@@ -24,7 +24,7 @@ def main():
         "and Smola (KDD 2015). Needs a preprocessing pass over "
         "the data to sort it into files by region and to collect "
         "statistics in order to do one-hot encoding and "
-        "standardization.",
+        "standardization."
     )
     subparsers = parser.add_subparsers()
 
@@ -68,8 +68,11 @@ def main():
     g.add_argument(
         "--voters-only",
         action="store_true",
-        default=True,
-        help="Only include citizens who are at least 18 years old " "(default).",
+        default=False,
+        help=(
+            "Only include citizens who are at least 18 years old "
+            "(default: all people)."
+        ),
     )
     g.add_argument(
         "--all-people",

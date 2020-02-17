@@ -49,13 +49,15 @@ This was done in the Jupyter notebook [`notebooks/get regions.ipynb`](notebooks/
 
 First, we need to sort the features by region, and collect statistics about them so we can do the featurization later.
 
-Run `pummel sort --version 2006-10 -z csv_pus.zip SORT_DIR`. (A few extra options are shown if you pass `--help`.) This will:
+Run `pummel sort --version 2006-10 --voters-only -z csv_pus.zip SORT_DIR`. (A few extra options are shown if you pass `--help`.) This will:
 
 - Make a bunch of files in `SORT_DIR` like `feats_AL_00_01.h5`, which contain basically the original features (except with the `ADJINC` adjustment applied to fields that need it to account for inflation) grouped by region. These are stored in HDF5 format with pandas, because it's much faster and takes less disk space than CSVs. (If you only want state-level analysis, `--region-type state` will make one file per state; `--region-type puma` will split per PUMA instead of the default `puma_county` regions.)
 
 - Makes a file `SORT_DIR/stats.h5` containing means and standard deviations of the real-valued features, counts of the different values for the categorical features, and a random sample of all the features.
 
-This will take a while (~15 minutes on my fast-ish laptop) and produce about 4GB of temp data (for the 2006-10 files). Luckily you should only need to do it once per ACS file.
+This will take a while (15 minutes to 2 hours, depending on machine and what processing you're doing) and produce about 4GB of temp data (for the 2006-10 files). Luckily you should only need to do it once per ACS file.
+
+Although `--voters-only` is simpler if you're directly replicating the Flaxman et al. paper, `--all-people` is the default: you can replicate the same effect in `featurize` by adding `--subsets 'AGEP >= 18 & CIT != 5'`. (If you want to do multiple subsets, at that to each one as appropriate.)
 
 
 ### Featurization
