@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from .data import fod_codes
+from .stats import _all_feats
 
 _naics_cat = {
     "11": "Agriculture",
@@ -545,7 +546,7 @@ class MyPreprocessor:
             sorted((k, v.sort_index()) for k, v in vc.items() if k not in skip_feats)
         )
 
-        all_feats = set(info["real_feats"]) | set(vc) | set(info["alloc_flags"])
+        all_feats = _all_feats(stats)
         assert not_feats.isdisjoint(all_feats)
         assert all_feats == inc_feats | skip_feats
 
@@ -566,7 +567,28 @@ class MyPreprocessor:
 
     def always_skip(self, skip_feats):
         self.my_skip.update(skip_feats)
-        self.inc_feats -= skip_feats
+        self.inc_feats = _all_feats(self.stats) - self.my_skip
+
+        self.need_to_load = need = self.inc_feats.copy()
+
+        if self.stats["version"] in _old_format:
+            if "NAICSP" in self.inc_feats:
+                need.update({"naicsp02", "naicsp07"})
+                need.discard("NAICSP")
+            if "OCCP" in self.inc_feats:
+                need.update({"occp02", "occp10"})
+                need.discard("OCCP")
+
+        if "ANYHISP" in self.inc_feats:
+            need.add("HISP")
+            need.discard("ANYHISP")
+        if "HASDEGREE" in self.inc_feats:
+            need.add("SCHL")
+            need.discard("HASDEGREE")
+        if "ETHNICITY" in self.inc_feats:
+            need.update({"RAC1P", "HISP"})
+            need.discard("ETHNICITY")
+
 
     def __call__(self, df):
         stats = self.stats

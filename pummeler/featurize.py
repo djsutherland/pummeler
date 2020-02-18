@@ -2,6 +2,7 @@ from __future__ import division, print_function
 from collections import defaultdict
 from copy import deepcopy
 import itertools
+from pathlib import Path
 import sys
 
 import numpy as np
@@ -9,6 +10,8 @@ import pandas as pd
 from scipy.linalg import qr
 from sklearn.metrics.pairwise import euclidean_distances
 from tqdm import tqdm
+
+from .stats import _all_feats
 
 
 _cache_needs_nan = {}
@@ -136,6 +139,18 @@ def _keeps(identities):
 ### Embeddings
 
 
+def read_file_chunks(fn, format=None, columns=None, chunksize=None):
+    if format is None:
+        format = Path(fn).suffix[1:]
+
+    if format in {"hdf5", "hdf", "h5"}:
+        return pd.read_hdf(fn, chunksize=chunksize, columns=columns)
+    elif format in {"parquet", "pq"}:
+        return [pd.read_parquet(fn, columns=columns)]  # chunksize not supported
+    else:
+        raise ValueError(f"unknown format {format!r}")
+
+
 class Featurizer:
     def __init__(self, stats, only_feats=None, skip_feats=None, skip_alloc_flags=True):
         self.stats = stats
@@ -197,8 +212,13 @@ def get_embeddings(
     always_skip = featurizers[0].skip_feats.intersection(
         *(f.skip_feats for f in featurizers[1:])
     )
-    if preprocessor:
+    if preprocessor is not None:
         preprocessor.always_skip(always_skip)
+        to_load = preprocessor.need_to_load
+    else:
+        to_load = _all_feats(stats) - always_skip
+    to_load = list({"PWGTP"} | to_load)
+
     big_feat_names, big_feat_ids = _feat_names_ids(stats, skip_feats=always_skip)
     each_include = []
     for f in featurizers:
@@ -231,7 +251,7 @@ def get_embeddings(
             emb_pieces = [[] for f in featurizers]
 
             # get mean embeddings for each chunk in the file
-            for c in pd.read_hdf(file, chunksize=chunksize):
+            for c in read_file_chunks(file, chunksize=chunksize, columns=to_load):
                 bar.update(c.shape[0])
 
                 if preprocessor is not None:
@@ -252,7 +272,10 @@ def get_embeddings(
                     continue
 
                 # expand discrete variables, standardize reals, etc
-                feats = dummies[: c.shape[0], :]
+                if dummies.shape[0] < c.shape[0]:  # if chunksize not supported
+                    # resize is fidgety
+                    dummies = np.empty((c.shape[0], dummies.shape[1]))
+                feats = dummies[: c.shape[0]]
                 get_dummies(c, stats, skip_feats=always_skip, ret_df=False, out=feats)
 
                 # figure out weights within each subset
