@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from .data import fod_codes
-from .stats import _all_feats
+from .featurize import _all_feats, Preprocessor
 
 _naics_cat = {
     "11": "Agriculture",
@@ -376,7 +376,7 @@ _rac2p_new_remap = {
 }
 
 
-class MyPreprocessor:
+class MyPreprocessor(Preprocessor):
     def __init__(self, common_feats=False):
         self.common_feats = common_feats
 
@@ -392,8 +392,8 @@ class MyPreprocessor:
         if not common_feats:
             assert new_pumas
 
-        self.my_skip = skip_feats = set(info["alloc_flags"])
-        self.inc_feats = inc_feats = set()
+        self.skip = skip_feats = set(info["alloc_flags"])
+        inc_feats = set()
         not_feats = set()
         skip = lambda a: skip_feats.update(a.split())
         inc = lambda a: inc_feats.update(a.split())
@@ -563,13 +563,14 @@ class MyPreprocessor:
             if f not in skip_feats
         ]
 
+        self.need_to_load = _all_feats(self.stats) - self.skip
         self(stats["sample"])
 
-    def always_skip(self, skip_feats):
-        self.my_skip.update(skip_feats)
-        self.inc_feats = _all_feats(self.stats) - self.my_skip
+    need_to_load = None
 
-        self.need_to_load = need = self.inc_feats.copy()
+    def always_skip(self, skip_feats):
+        self.skip.update(skip_feats)
+        self.need_to_load = need = _all_feats(self.stats) - self.skip
 
         if self.stats["version"] in _old_format:
             if "NAICSP" in self.inc_feats:
@@ -589,15 +590,14 @@ class MyPreprocessor:
             need.update({"RAC1P", "HISP"})
             need.discard("ETHNICITY")
 
-
     def __call__(self, df):
         stats = self.stats
         is_old = stats["version"] in _old_format
         do_common = not is_old and stats["do_common"]
-        inc_feats = self.inc_feats
+        skip = self.my_skip
 
         # get NAICS category
-        if "NAICSP" in inc_feats:
+        if "NAICSP" not in skip:
             if is_old:
                 n = df.naicsp02.where(df.naicsp07.isnull(), df.naicsp07)
             else:
@@ -605,7 +605,7 @@ class MyPreprocessor:
             df["NAICSP"] = n.map(naics_cat, na_action="ignore")
 
         # get OCC categories
-        if "OCCP" in inc_feats:
+        if "OCCP" not in skip:
             if is_old:
                 o = df.occp02.where(df.occp10.isnull(), df.occp10)
             else:
@@ -615,9 +615,9 @@ class MyPreprocessor:
         # get field of degree categories
         # was averaging these before, but that's a little complicated in this
         # code structure, so whatever
-        if "FOD1P" in inc_feats:
+        if "FOD1P" not in skip:
             df["FOD1P"] = df.FOD1P.map(fod_cats, na_action="ignore")
-        if "FOD2P" in inc_feats:
+        if "FOD2P" not in skip:
             df["FOD2P"] = df.FOD2P.map(fod_cats, na_action="ignore")
 
         # these variables changed meanings; recode to old values
@@ -636,14 +636,14 @@ class MyPreprocessor:
             df["RAC2P"] = df.RAC2P.map(_rac2p_old_remap, na_action="ignore")
 
         # recoded variables
-        if "ANYHISP" in inc_feats:
+        if "ANYHISP" not in skip:
             df["ANYHISP"] = (df.HISP > 1).astype(int)
-        if "HASDEGREE" in inc_feats:
+        if "HASDEGREE" not in skip:
             df["HASDEGREE"] = (df.SCHL >= 20).astype(int)
-        if "ETHNICITY" in inc_feats:
+        if "ETHNICITY" not in skip:
             df["ETHNICITY"] = df.RAC1P.where(df.HISP == 1, "hispanic").map(
                 _ethnicity_map
             )
 
         # drop skipped feats
-        df.drop(columns=self.my_skip, inplace=True, errors="ignore")
+        df.drop(columns=skip, inplace=True, errors="ignore")

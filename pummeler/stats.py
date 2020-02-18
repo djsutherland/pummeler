@@ -43,9 +43,3 @@ def load_stats(fn):
                 v[k[len(pre) :]] = f[k].sort_index()
     return stats
 
-
-def _all_feats(stats):
-    info = stats["version_info"]
-    return (
-        set(info["real_feats"]) | set(info["discrete_feats"]) | set(info["alloc_flags"])
-    )

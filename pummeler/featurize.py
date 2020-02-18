@@ -11,8 +11,6 @@ from scipy.linalg import qr
 from sklearn.metrics.pairwise import euclidean_distances
 from tqdm import tqdm
 
-from .stats import _all_feats
-
 
 _cache_needs_nan = {}
 
@@ -122,6 +120,13 @@ def _feat_names_ids(stats, skip_feats=None):
     return names, ids
 
 
+def _all_feats(stats):
+    info = stats["version_info"]
+    return (
+        set(info["real_feats"]) | set(info["discrete_feats"]) | set(info["alloc_flags"])
+    )
+
+
 def _keeps(identities):
     """
     Figure out which levels we'd want to drop for the sake of
@@ -201,9 +206,10 @@ def get_embeddings(
     if n_subsets == 1:
         subsets += ","  # make sure eval returns a matrix
 
-    if preprocessor is not None:
-        stats = deepcopy(stats)
-        preprocessor.handle_stats(stats)
+    if preprocessor is None:
+        preprocessor = Preprocessor()  # a processor that only tracks skips
+    stats = deepcopy(stats)
+    preprocessor.handle_stats(stats)
 
     assert len(featurizers) >= 1
     featurizers = [feat_class(stats) for feat_class in featurizers]
@@ -212,12 +218,8 @@ def get_embeddings(
     always_skip = featurizers[0].skip_feats.intersection(
         *(f.skip_feats for f in featurizers[1:])
     )
-    if preprocessor is not None:
-        preprocessor.always_skip(always_skip)
-        to_load = preprocessor.need_to_load
-    else:
-        to_load = _all_feats(stats) - always_skip
-    to_load = list({"PWGTP"} | to_load)
+    preprocessor.always_skip(always_skip)
+    to_load = list({"PWGTP"} | preprocessor.need_to_load)
 
     big_feat_names, big_feat_ids = _feat_names_ids(stats, skip_feats=always_skip)
     each_include = []
@@ -254,8 +256,7 @@ def get_embeddings(
             for c in read_file_chunks(file, chunksize=chunksize, columns=to_load):
                 bar.update(c.shape[0])
 
-                if preprocessor is not None:
-                    preprocessor(c)
+                preprocessor(c)
 
                 # index into which lines are in which subsets,
                 # possibly working around gross pandas bug(?) for one-line dfs
@@ -473,6 +474,7 @@ class RFFFeaturizer(Featurizer):
 
 
 class MyAdditiveExtras(Featurizer):
+    # requires my_proc.MyPreprocessor
     def __init__(self, stats, seed=None, **kwargs):
         super().__init__(stats, **kwargs)
 
@@ -627,3 +629,23 @@ class MyAdditiveExtras(Featurizer):
 
         assert pos == self.out_size
         return out
+
+
+################################################################################
+
+
+class Preprocessor:
+    def handle_stats(self, stats):
+        self.stats = stats
+        stats["version"] += "_processed"
+        self.skip = set()
+
+    def always_skip(self, skip_feats):
+        self.skip.update(skip_feats)
+
+    @property
+    def need_to_load(self):
+        return _all_feats(self.stats) - self.skip
+
+    def __call__(self, df):
+        pass
