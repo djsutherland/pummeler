@@ -245,7 +245,7 @@ def get_embeddings(
         total=stats["n_total"], unit="line", unit_scale=True, dynamic_ncols=True
     ) as bar:
         for file_idx, file in enumerate(files):
-            bar.set_postfix(file=file)
+            bar.set_postfix(file=Path(file).stem)
             weights = []
             total_weights = 0
             emb_pieces = [[] for f in featurizers]
