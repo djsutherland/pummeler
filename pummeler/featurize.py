@@ -636,6 +636,7 @@ class MyAdditiveExtras(Featurizer):
 
 class Preprocessor:
     def handle_stats(self, stats):
+        assert not hasattr(self, "stats")
         self.stats = stats
         stats["version"] += "_processed"
         self.skip = set()

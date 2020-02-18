@@ -381,15 +381,12 @@ class MyPreprocessor(Preprocessor):
         self.common_feats = common_feats
 
     def handle_stats(self, stats):
-        assert not hasattr(self, "stats")
-        self.stats = stats
-        common_feats = self.common_feats
-
+        super().handle_stats(stats)
         info = stats["version_info"]
 
-        stats["do_common"] = common_feats
+        stats["do_common"] = self.common_feats
         new_pumas = info["region_year"] == "10"
-        if not common_feats:
+        if not self.common_feats:
             assert new_pumas
 
         self.skip = skip_feats = set(info["alloc_flags"])
@@ -399,7 +396,7 @@ class MyPreprocessor(Preprocessor):
         inc = lambda a: inc_feats.update(a.split())
         not_a_thing = lambda a: not_feats.update(a.split())
 
-        if not common_feats:
+        if not self.common_feats:
             maybe = inc
         else:
             maybe = skip if new_pumas else not_a_thing
@@ -482,7 +479,7 @@ class MyPreprocessor(Preprocessor):
         # ancestry
         inc("HISP")  # 24 levels, area of hispanic origin
         inc("RAC1P RAC2P")
-        (skip if common_feats else inc)("RAC3P")
+        (skip if self.common_feats else inc)("RAC3P")
         # many RAC3P levels that changed meanings, probably overfitting anyway
         inc("RACAIAN RACASN RACBLK RACSOR RACWHT RACNUM")
         if "RACNHPI" in info["discrete_feats"]:
@@ -502,7 +499,7 @@ class MyPreprocessor(Preprocessor):
             vc["FOD1P"] = vc["FOD1P"].groupby(fod_cats).sum()
             vc["FOD2P"] = vc["FOD2P"].groupby(fod_cats).sum()
 
-            if common_feats:
+            if self.common_feats:
                 vc["SCHG"] = vc["SCHG"].groupby(_schg_remap).sum()
                 vc["SCHL"] = vc["SCHL"].groupby(_schl_remap).sum()
                 vc["FER"] = vc["FER"].groupby(_fer_remap).sum()
@@ -526,7 +523,7 @@ class MyPreprocessor(Preprocessor):
             vc["RAC2P"] = vc["RAC2P"].groupby(_rac2p_old_remap).sum()
             del vc["naicsp02"], vc["naicsp07"], vc["occp02"], vc["occp10"]
 
-        cutoff = 12 if common_feats else 20
+        cutoff = 12 if self.common_feats else 20
         vc["HASDEGREE"] = vc["SCHL"].groupby(lambda x: int(x >= cutoff)).sum()
         vc["ANYHISP"] = vc["HISP"].groupby(lambda x: int(x == 1)).sum()
         vc["ETHNICITY"] = pd.Series(
@@ -573,20 +570,20 @@ class MyPreprocessor(Preprocessor):
         self.need_to_load = need = _all_feats(self.stats) - self.skip
 
         if self.stats["version"] in _old_format:
-            if "NAICSP" in self.inc_feats:
+            if "NAICSP" not in self.skip:
                 need.update({"naicsp02", "naicsp07"})
                 need.discard("NAICSP")
-            if "OCCP" in self.inc_feats:
+            if "OCCP" not in self.skip:
                 need.update({"occp02", "occp10"})
                 need.discard("OCCP")
 
-        if "ANYHISP" in self.inc_feats:
+        if "ANYHISP" not in self.skip:
             need.add("HISP")
             need.discard("ANYHISP")
-        if "HASDEGREE" in self.inc_feats:
+        if "HASDEGREE" not in self.skip:
             need.add("SCHL")
             need.discard("HASDEGREE")
-        if "ETHNICITY" in self.inc_feats:
+        if "ETHNICITY" not in self.skip:
             need.update({"RAC1P", "HISP"})
             need.discard("ETHNICITY")
 
