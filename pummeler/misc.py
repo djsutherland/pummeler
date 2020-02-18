@@ -15,7 +15,7 @@ def merge_embeddings(embeddings, region_weights, region_maps):
     m_names = sorted(set(region_maps))
     m_names_lookup = {n: i for i, n in enumerate(m_names)}
 
-    transform = np.zeros((len(m_names), embeddings[0].shape[1], n_subsets))
+    transform = np.zeros((len(m_names), embeddings[0].shape[0], n_subsets))
     for r_i, (m, w) in enumerate(zip(region_maps, region_weights)):
         transform[m_names_lookup[m], r_i, :] = w
 
