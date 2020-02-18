@@ -42,9 +42,11 @@ def merge_embeddings(embeddings, region_weights, region_maps):
             np.dot(transform[:, :, i], emb[:, :, i], out=out[i])
         m_emb = np.rollaxis(out, 0, 3)
         if squeezed:
-            m_emb = m_emb[:, :, 0]
+            m_emb = np.squeeze(m_emb, 2)
         m_embeddings.append(m_emb)
 
+    if squeezed:
+        m_weights = np.squeeze(m_weights, 1)
     return m_embeddings, m_names, m_weights
 
 
