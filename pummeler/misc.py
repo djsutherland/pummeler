@@ -5,7 +5,7 @@ import numpy as np
 from .data import geocode_data
 
 
-def merge_embeddings(embeddings, region_names, region_weights, region_maps):
+def merge_embeddings(embeddings, region_weights, region_maps):
     squeezed = region_weights.ndim == 1
     if squeezed:
         region_weights = region_weights[:, np.newaxis]
@@ -15,7 +15,7 @@ def merge_embeddings(embeddings, region_names, region_weights, region_maps):
     m_names = sorted(set(region_maps))
     m_names_lookup = {n: i for i, n in enumerate(m_names)}
 
-    transform = np.zeros((len(m_names), len(region_names), n_subsets))
+    transform = np.zeros((len(m_names), embeddings[0].shape[1], n_subsets))
     for r_i, (m, w) in enumerate(zip(region_maps, region_weights)):
         transform[m_names_lookup[m], r_i, :] = w
 
@@ -55,7 +55,6 @@ def _get_merged_embeddings(data_dict, mapping_fn, out_prefix):
 
     m_embeddings, m_names, m_weights = merge_embeddings(
         embeddings,
-        data_dict["region_names"],
         data_dict["region_weights"],
         [mapping_fn(r) for r in data_dict["region_names"]],
     )
