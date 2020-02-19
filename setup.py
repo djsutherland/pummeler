@@ -16,6 +16,7 @@ setup(
         "h5py",
         "numpy",
         "pandas>=0.21.0",
+        "pyarrow>=0.15",
         "tables",
         "scipy",
         "scikit-learn",

@@ -144,14 +144,35 @@ def _keeps(identities):
 ### Embeddings
 
 
-def read_file_chunks(fn, format=None, columns=None, chunksize=None):
+def read_file_chunks(fn, format=None, columns=None, chunksize=2 ** 30):
     if format is None:
         format = Path(fn).suffix[1:]
 
     if format in {"hdf5", "hdf", "h5"}:
-        return pd.read_hdf(fn, chunksize=chunksize, columns=columns)
+        yield from pd.read_hdf(fn, chunksize=chunksize, columns=columns)
     elif format in {"parquet", "pq"}:
-        return [pd.read_parquet(fn, columns=columns)]  # chunksize not supported
+        from pyarrow.parquet import ParquetFile
+
+        f = ParquetFile(fn)
+        next_chunk = []
+        size_so_far = 0
+        for i in range(f.num_row_groups):
+            next_size = f.metadata.row_group(i).num_rows
+            if next_chunk and (size_so_far + next_size > chunksize):
+                # big enough to yield; will be > chunksize if necessary
+                yield f.read_row_groups(
+                    next_chunk, columns=columns, use_pandas_metadata=True
+                ).to_pandas()
+                next_chunk.clear()
+                size_so_far = 0
+
+            next_chunk.append(i)
+            size_so_far += next_size
+
+        if next_chunk:
+            yield f.read_row_groups(
+                next_chunk, columns=columns, use_pandas_metadata=True
+            ).to_pandas()
     else:
         raise ValueError(f"unknown format {format!r}")
 
