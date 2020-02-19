@@ -370,6 +370,38 @@ class LinearFeaturizer(Featurizer):
 
 ################################################################################
 
+_sincos = None
+
+
+def _get_sincos():
+    global _sincos
+    if _sincos is None:
+        try:
+            import ctypes
+
+            mkl_lib = ctypes.cdll.LoadLibrary("libmkl_rt.so")
+        except OSError:
+
+            def np_sincos(inp):
+                return np.sin(inp), np.cos(inp)
+
+            _sincos = np_sincos
+        else:
+            in_array = np.ctypeslib.ndpointer(dtype=np.float64)
+            out_array = np.ctypeslib.ndpointer(dtype=np.float64, flags="WRITEABLE")
+            sincos_d = mkl_lib.vdSinCos
+            sincos_d.argtypes = [ctypes.c_int64, in_array, out_array, out_array]
+            sincos_d.restype = None
+
+            def mkl_sincos(inp):
+                out_sin = np.empty_like(inp)
+                out_cos = np.empty_like(inp)
+                sincos_d(inp.size, inp, out_sin, out_cos)
+                return out_sin, out_cos
+
+            _sincos = mkl_sincos
+    return _sincos
+
 
 def rff_embedding(feats, wts, freqs, out=None):
     """
@@ -380,9 +412,7 @@ def rff_embedding(feats, wts, freqs, out=None):
     if out is None:
         out = np.empty((2 * D, wts.shape[0]))
 
-    angles = np.dot(feats, freqs)
-    sin_angles = np.sin(angles)  # TODO: could use MKL sincos for this
-    cos_angles = np.cos(angles, out=angles)
+    sin_angles, cos_angles = _get_sincos()(np.dot(feats, freqs))
 
     np.dot(sin_angles.T, wts.T, out=out[:D])
     np.dot(cos_angles.T, wts.T, out=out[D:])
