@@ -1,8 +1,10 @@
 from __future__ import division, print_function
 from collections import defaultdict
 from copy import deepcopy
+import ctypes
 import itertools
 from pathlib import Path
+import os
 import sys
 
 import numpy as np
@@ -216,6 +218,7 @@ def get_embeddings(
     subsets=None,
     squeeze_queries=True,
     preprocessor=None,
+    dtype=np.float64,
 ):
     if subsets is None:
         subsets = "PWGTP > 0"
@@ -262,7 +265,7 @@ def get_embeddings(
     ]
     region_weights = np.empty((len(files), n_subsets))
 
-    dummies = np.empty((chunksize, len(big_feat_names)))
+    dummies = np.empty((chunksize, len(big_feat_names)), dtype=dtype)
 
     with tqdm(
         total=stats["n_total"], unit="line", unit_scale=True, dynamic_ncols=True
@@ -288,20 +291,28 @@ def get_embeddings(
 
                 # remove lines not in any subset
                 keep = which.any(axis=0)
-                c = c.loc[keep]
-                which = which[:, keep]
-                if not c.shape[0]:  # we subsetted away the entire chunk
-                    continue
+                if not keep.all():
+                    c = c.loc[keep]
+                    which = which[:, keep]
+                    if not c.shape[0]:  # we subsetted away the entire chunk
+                        continue
 
                 # expand discrete variables, standardize reals, etc
                 if dummies.shape[0] < c.shape[0]:  # if chunksize not supported
-                    # resize is fidgety
-                    dummies = np.empty((c.shape[0], dummies.shape[1]))
+                    # .resize() is fidgety...
+                    dummies = np.empty((c.shape[0], dummies.shape[1]), dtype=dtype)
                 feats = dummies[: c.shape[0]]
-                get_dummies(c, stats, skip_feats=always_skip, ret_df=False, out=feats)
+                get_dummies(
+                    c,
+                    stats,
+                    skip_feats=always_skip,
+                    ret_df=False,
+                    dtype=dtype,
+                    out=feats,
+                )
 
                 # figure out weights within each subset
-                wts = np.tile(c.PWGTP, (n_subsets, 1))
+                wts = np.tile(c.PWGTP.astype(dtype), (n_subsets, 1))
                 for i, w in enumerate(which):
                     wts[i, ~w] = 0
 
@@ -373,13 +384,14 @@ class LinearFeaturizer(Featurizer):
 _sincos = None
 
 
-def _get_sincos():
+def _get_sincos(mkl_path=None):
     global _sincos
     if _sincos is None:
-        try:
-            import ctypes
+        if mkl_path is None:
+            mkl_path = os.environ.get("MKL", "libmkl_rt.so")
 
-            mkl_lib = ctypes.cdll.LoadLibrary("libmkl_rt.so")
+        try:
+            mkl_lib = ctypes.cdll.LoadLibrary(mkl_path)
         except OSError:
 
             def np_sincos(inp):
@@ -387,16 +399,24 @@ def _get_sincos():
 
             _sincos = np_sincos
         else:
-            in_array = np.ctypeslib.ndpointer(dtype=np.float64)
-            out_array = np.ctypeslib.ndpointer(dtype=np.float64, flags="WRITEABLE")
+            in_d = np.ctypeslib.ndpointer(dtype=np.float64)
+            out_d = np.ctypeslib.ndpointer(dtype=np.float64, flags="WRITEABLE")
             sincos_d = mkl_lib.vdSinCos
-            sincos_d.argtypes = [ctypes.c_int64, in_array, out_array, out_array]
+            sincos_d.argtypes = [ctypes.c_int64, in_d, out_d, out_d]
             sincos_d.restype = None
+
+            in_s = np.ctypeslib.ndpointer(dtype=np.float32)
+            out_s = np.ctypeslib.ndpointer(dtype=np.float32, flags="WRITEABLE")
+            sincos_s = mkl_lib.vsSinCos
+            sincos_s.argtypes = [ctypes.c_int64, in_s, out_s, out_s]
+            sincos_s.restype = None
+
+            fn = {"<f4": sincos_s, "<f8": sincos_d}
 
             def mkl_sincos(inp):
                 out_sin = np.empty_like(inp)
                 out_cos = np.empty_like(inp)
-                sincos_d(inp.size, inp, out_sin, out_cos)
+                fn[inp.dtype.str](inp.size, inp, out_sin, out_cos)
                 return out_sin, out_cos
 
             _sincos = mkl_sincos
@@ -410,7 +430,7 @@ def rff_embedding(feats, wts, freqs, out=None):
     """
     D = freqs.shape[1]
     if out is None:
-        out = np.empty((2 * D, wts.shape[0]))
+        out = np.empty((2 * D, wts.shape[0]), dtype=feats.dtype)
 
     sin_angles, cos_angles = _get_sincos()(np.dot(feats, freqs))
 
@@ -487,9 +507,11 @@ class RFFFeaturizer(Featurizer):
         bandwidth=None,
         orthogonal=True,
         seed=None,
+        dtype=None,
         **kwargs,
     ):
         super().__init__(stats, **kwargs)
+        self.dtype = dtype
         self.out_size = 2 * n_freqs
         self.bandwidth = bandwidth
 
@@ -511,6 +533,8 @@ class RFFFeaturizer(Featurizer):
             )
         else:
             n_freqs = freqs.shape[1]
+        if dtype is not None:
+            freqs = freqs.astype(dtype)
         self.freqs = freqs
 
     def set_feat_name_ids(self, names, ids):
@@ -518,6 +542,10 @@ class RFFFeaturizer(Featurizer):
         self.keep_multilevels = np.ones(self.out_size, dtype=np.bool)
 
     def __call__(self, feats, wts, out=None):
+        if self.dtype is None:
+            self.dtype = feats.dtype
+            self.freqs = self.freqs.astype(self.dtype)
+
         return rff_embedding(feats, wts, self.freqs, out=out)
 
 
