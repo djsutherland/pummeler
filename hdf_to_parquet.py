@@ -9,7 +9,7 @@ from tqdm import tqdm
 from pummeler.stats import load_stats
 
 
-def convert(in_dir, out_dir):
+def convert(in_dir, out_dir, **kwargs):
     in_dir = Path(in_dir)
     out_dir = Path(out_dir)
 
@@ -29,7 +29,7 @@ def convert(in_dir, out_dir):
             df[k] = pd.Categorical(df[k], categories=vc.index)
         df['RT'] = pd.Categorical(df['RT'])
         
-        df.to_parquet(out_dir / (fn.stem + '.parquet'))
+        df.to_parquet(out_dir / (fn.stem + '.parquet'), **kwargs)
 
     stats_out = out_dir / 'stats.h5'
     if stats_out.exists():
@@ -43,12 +43,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('in_dir', type=Path)
     parser.add_argument('out_dir', nargs='?', type=Path)
+    parser.add_argument('--row-group-size', type=int)
     args = parser.parse_args()
     if args.out_dir is None:
         args.out_dir = args.in_dir.with_name(args.in_dir.name + '_pq')
     args.out_dir.mkdir(parents=True, exist_ok=True)
     print(f"Converting {args.in_dir} to {args.out_dir}...")
-    convert(args.in_dir, args.out_dir)
+    convert(**vars(args))
 
 if __name__ == '__main__':
     main()
