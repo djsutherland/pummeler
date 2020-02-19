@@ -357,7 +357,7 @@ def linear_embedding(feats, wts, out=None):
     dummy features `feats`, with sample weighting `wts`.
     """
     if out is None:
-        out = np.empty((feats.shape[1], wts.shape[0]))
+        out = np.empty((feats.shape[1], wts.shape[0]), dtype=feats.dtype)
     np.dot(feats.T, wts.T, out=out)
     w = wts.sum(axis=1)
     nz = w != 0
