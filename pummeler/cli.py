@@ -3,6 +3,7 @@ import argparse
 from functools import partial
 from glob import glob
 import os
+from pathlib import Path
 import sys
 import traceback
 
@@ -10,7 +11,13 @@ import h5py
 import numpy as np
 import pandas as pd
 
-from .featurize import get_embeddings, LinearFeaturizer, RFFFeaturizer, MyAdditiveExtras
+from .featurize import (
+    get_embeddings,
+    read_file_chunks,
+    LinearFeaturizer,
+    RFFFeaturizer,
+    MyAdditiveExtras,
+)
 from .misc import get_state_embeddings, get_merged_embeddings
 from .reader import VERSIONS
 from .stats import load_stats, save_stats
@@ -40,6 +47,12 @@ def main():
     g.add_argument("--csv-files", "-c", nargs="+", help="CSV files in ACS PUMS format.")
 
     io.add_argument("out_dir", help="Directory for the sorted features.")
+    io.add_argument(
+        "--format",
+        choices=["hdf5", "h5", "parquet", "pq"],
+        default="parquet",
+        help="Format to sort into; default %(default)s.",
+    )
 
     io.add_argument(
         "--region-type",
@@ -323,15 +336,17 @@ def do_sort(args, parser):
         os.makedirs(args.out_dir)
     stats = sort_by_region(
         args.zipfile or args.csv_files,
-        os.path.join(args.out_dir, "feats_{}.h5"),
+        os.path.join(args.out_dir, "feats_{}"),
         voters_only=args.voters_only,
         stats_only=args.stats_only,
         adj_inc=True,
         version=args.version,
         chunksize=args.chunksize,
         region_type=args.region_type,
+        format=args.format,
+        add_extension=True,
     )
-    save_stats(os.path.join(args.out_dir, "stats.h5"), stats)
+    save_stats(os.path.join(args.out_dir, "stats"), stats)
 
 
 def do_featurize(args, parser):
@@ -358,7 +373,7 @@ def do_featurize(args, parser):
             )
         )
 
-    stats = load_stats(os.path.join(args.dir, "stats.h5"))
+    stats = load_stats(os.path.join(args.dir, "stats"))
     files = glob(os.path.join(args.dir, "feats_*.h5"))
     region_names = [os.path.basename(f)[6:-3] for f in files]
 
@@ -564,11 +579,9 @@ def do_weight_counts(args, parser):
         args.outfile = os.path.join(args.dir, "weight_counts.csv")
 
     mapping = {}
-    for fn in os.listdir(args.dir):
-        if fn.startswith("feats_") and fn.endswith(".h5"):
-            region = fn[len("feats_") : -len(".h5")]
-            with h5py.File(os.path.join(args.dir, fn), "r") as f:
-                mapping[region] = f["total_wt"][()]
+    for fn in Path(args.dir).glob("feats_*"):
+        region = fn.stem[len("feats_") :]
+        mapping[region] = sum(chunk.PWGTP.sum() for chunk in read_file_chunks(fn))
 
     df = pd.DataFrame.from_dict(mapping, orient="index")
     df.columns = ["total_wt"]

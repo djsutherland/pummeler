@@ -12,11 +12,20 @@ weirds = """
 
 def read_chunks(fname, version, chunksize=10 ** 5, voters_only=False, adj_inc=None):
     info = VERSIONS[version]
+    dtypes = {}
+    for k in info["meta_cols"] + info["discrete_feats"] + info["alloc_flags"]:
+        dtypes[k] = "category"
+    for k in info["real_feats"]:
+        dtypes[k] = "float64"
+    for k in info["weight_cols"]:
+        dtypes[k] = "Int64"
+    dtypes["SERIALNO"] = dtypes["serialno"] = "string"
+
     chunks = pd.read_csv(
         fname,
         skipinitialspace=True,
         na_values={k: ["N.A.", "N.A.//", "N.A.////"] for k in weirds},
-        dtype={k: str for k in weirds},
+        dtype=dtypes,
         chunksize=chunksize,
     )
     renames = None

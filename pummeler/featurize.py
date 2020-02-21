@@ -6,6 +6,7 @@ import itertools
 from pathlib import Path
 import os
 import sys
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -180,10 +181,16 @@ def read_file_chunks(fn, format=None, columns=None, chunksize=2 ** 30):
 
 
 class Featurizer:
-    def __init__(self, stats, only_feats=None, skip_feats=None, skip_alloc_flags=True):
+    def __init__(self, stats, **skip_kwargs):
         self.stats = stats
-        info = stats["version_info"]
+        self.skip_feats = self.get_skip_feats(**skip_kwargs)
+        self.n_feats = _num_feats(stats, skip_feats=self.skip_feats)
 
+    def get_skip_feats(self, only_feats=None, skip_feats=None, skip_alloc_flags=True, **rest):
+        if rest:
+            warnings.warn(f"Unused arguments: {list(rest.keys())!r}")
+
+        info = self.stats["version_info"]
         skip_feats = set([] if skip_feats is None else skip_feats)
         if only_feats is not None:
             only_feats = set(only_feats)
@@ -197,9 +204,7 @@ class Featurizer:
         else:
             if skip_alloc_flags:
                 skip_feats.update(info["alloc_flags"])
-        self.skip_feats = skip_feats
-
-        self.n_feats = _num_feats(stats, skip_feats=self.skip_feats)
+        return skip_feats
 
     out_size = None  # subclasses should set
 
@@ -531,14 +536,13 @@ class RFFFeaturizer(Featurizer):
                 n_feats=_num_feats(stats, skip_feats=self.skip_feats),
                 orthogonal=orthogonal,
             )
-        else:
-            n_freqs = freqs.shape[1]
         if dtype is not None:
             freqs = freqs.astype(dtype)
         self.freqs = freqs
 
     def set_feat_name_ids(self, names, ids):
         self.input_feat_names = names
+        self.input_feat_ids = ids
         self.keep_multilevels = np.ones(self.out_size, dtype=np.bool)
 
     def __call__(self, feats, wts, out=None):

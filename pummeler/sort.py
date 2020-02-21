@@ -1,8 +1,8 @@
 from __future__ import division, print_function
-from collections import Counter
+from collections import Counter, defaultdict
 import heapq
 import os
-import sys
+from pathlib import Path
 import zipfile
 
 import h5py
@@ -24,6 +24,8 @@ def sort_by_region(
     n_to_sample=5000,
     stats_only=False,
     region_type="puma_county",
+    format="parquet",
+    add_extension=False,
 ):
     info = VERSIONS[version]
     all_cols = set(
@@ -41,6 +43,8 @@ def sort_by_region(
         puma_to_region = geocode_data(key).region.to_dict().get
     elif region_type == "puma":
         stab_to_st = geocode_data("state_to_stab").stab.to_dict()
+        for stab, st in list(stab_to_st.items()):
+            stab_to_st[f"{stab:02}"] = st
 
         def puma_to_region(st_puma):
             st, puma = st_puma
@@ -48,14 +52,26 @@ def sort_by_region(
 
     elif region_type == "state":
         stab_to_st = geocode_data("state_to_stab").stab.to_dict()
+        for stab, st in list(stab_to_st.items()):
+            stab_to_st[f"{stab:02}"] = st
 
         def puma_to_region(st_puma):
             st, puma = st_puma
             return stab_to_st[st]
+
     else:
         raise ValueError(f"Bad region_type {region_type!r}")
 
-    created_files = set()
+    if format.lower() in {"hdf", "hdf5", "h5"}:
+        format = "hdf5"
+        if add_extension:
+            out_fmt += ".h5"
+    elif format.lower() in {"parquet", "pq"}:
+        format = "parquet"
+        if add_extension:
+            out_fmt += ".pq"
+    else:
+        raise ValueError(f"unknown format {format!r}")
 
     real_info = []  # (num non-nan, mean series, mean of square series) entries
     value_counts = {}  # column name => sum of col.value_counts()
@@ -80,6 +96,11 @@ def sort_by_region(
     reservoir = []
 
     columns = None
+
+    # We'll write each chunk into a separate small file for now,
+    # then merge at the end. (The good file formats for featurization aren't
+    # super append-friendly.)
+    file_parts = defaultdict(list)
 
     with tqdm(
         total=sum(sizes),
@@ -158,7 +179,7 @@ def sort_by_region(
                         else:
                             heapq.heappushpop(reservoir, r_tup)
 
-                    # output into files by region
+                    # output into parts of files by region
                     if not stats_only:
                         regions = np.empty(chunk.shape[0], dtype=object)
                         for i, tup in enumerate(zip(chunk.ST, chunk.PUMA)):
@@ -167,45 +188,11 @@ def sort_by_region(
                                 not_in_region[tup] += 1
 
                         for r, r_chunk in chunk.groupby(regions):
-                            out = out_fmt.format(r)
-                            try:
-                                mode = "a" if r in created_files else "w"
-                                r_chunk.to_hdf(
-                                    out,
-                                    "df",
-                                    format="table",
-                                    append=True,
-                                    mode=mode,
-                                    complib="blosc",
-                                    complevel=6,
-                                )
-                                old_wt = None
-                            except ValueError:
-                                # if new chunk has longer strings than previous
-                                # one did, this will cause an error...instead of
-                                # hardcoding sizes, though, just re-write the data.
-                                # (Note that this happens in data validation, i.e.
-                                # nothing is written to the file yet.)
-                                old = pd.read_hdf(out, "df")
-                                with h5py.File(out, "r") as out_f:
-                                    old_wt = out_f["total_wt"][()]
-                                new = pd.concat([old, r_chunk])
-                                new.to_hdf(
-                                    out,
-                                    "df",
-                                    format="table",
-                                    mode="w",
-                                    complib="blosc",
-                                    complevel=6,
-                                )
-
-                            with h5py.File(out, "a") as out_f:
-                                ds = out_f.require_dataset("total_wt", (), np.int64)
-                                if old_wt is None:
-                                    old_wt = ds[()]
-                                ds[()] = old_wt + r_chunk.PWGTP.sum()
-
-                            created_files.add(r)
+                            target_name = out_fmt.format(r)
+                            parts = file_parts[target_name]
+                            fn = f"{target_name}.part{len(parts)+1}"
+                            write_chunk(fn, r_chunk, format=format)
+                            parts.append(fn)
 
                     bar.update(start_size + in_f.tell() - bar.n)
 
@@ -213,6 +200,11 @@ def sort_by_region(
         print("Records not in a region:")
         for k, count in not_in_region.most_common():
             print(k, count)
+
+    print("Merging files...")
+    dtypes = {k: pd.CategoricalDtype(v.index) for k, v in value_counts.items()}
+    for target_file, part_names in tqdm(file_parts.items()):
+        merge_chunks(part_names, target_file, format=format, dtypes=dtypes)
 
     total = sum(n_nonnan for n_nonnan, mean, mean_sq in real_info)
     real_means = 0
@@ -237,3 +229,30 @@ def sort_by_region(
     stats["version_info"] = info
     stats["sample"] = pd.DataFrame([t for r, t in reservoir], columns=columns)
     return stats
+
+
+def write_chunk(fn, df, format):
+    if format == "parquet":
+        df.to_parquet(fn, row_group_size=65536)
+    elif format == "hdf5":
+        df.to_hdf(fn, "df", format="table", mode="w", complib="blosc", complevel=6)
+    else:
+        raise ValueError(f"unknown format {format!r}")
+
+
+def merge_chunks(in_files, out_fn, format, dtypes):
+    if len(in_files) == 1:
+        Path(in_files[0]).rename(out_fn)
+        return
+
+    if format == "parquet":
+        df = pd.concat([pd.read_parquet(fn).astype(dtypes) for fn in in_files])
+        df.to_parquet(out_fn, row_group_size=65536)
+    elif format == "hdf5":
+        df = _merge_dfs([pd.read_hdf(fn, "df").astype(dtypes) for fn in in_files])
+        df.to_hdf(out_fn, "df", format="table", mode="w", complib="blosc", complevel=6)
+    else:
+        raise ValueError(f"unknown format {format!r}")
+
+    for fn in in_files:
+        Path(fn).unlink()

@@ -15,8 +15,8 @@ setup(
     install_requires=[
         "h5py",
         "numpy",
-        "pandas>=0.21.0",
-        "pyarrow>=0.15",
+        "pandas~=1.0",
+        "pyarrow>=0.16",
         "tables",
         "scipy",
         "scikit-learn",
