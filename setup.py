@@ -13,7 +13,6 @@ setup(
     entry_points={"console_scripts": ["pummel = pummeler.cli:main"]},
     description="Utilities for processing and analyzing ACS PUMS files.",
     install_requires=[
-        "h5py",
         "numpy",
         "pandas~=1.0",
         "pyarrow>=0.16",
