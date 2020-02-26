@@ -33,7 +33,7 @@ def load_stats(fn):
         my_fn = fn
         if not fn.exists() and fn.with_suffix(".npz").exists():
             my_fn = fn.with_suffix(".npz")
-        return {k: v for k, v in np.load(my_fn).items()}
+        return {k: v[()] for k, v in np.load(my_fn, allow_pickle=True).items()}
 
     except ValueError:
         my_fn = fn
