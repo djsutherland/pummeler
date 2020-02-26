@@ -186,7 +186,9 @@ class Featurizer:
         self.skip_feats = self.get_skip_feats(**skip_kwargs)
         self.n_feats = _num_feats(stats, skip_feats=self.skip_feats)
 
-    def get_skip_feats(self, only_feats=None, skip_feats=None, skip_alloc_flags=True, **rest):
+    def get_skip_feats(
+        self, only_feats=None, skip_feats=None, skip_alloc_flags=True, **rest
+    ):
         if rest:
             warnings.warn(f"Unused arguments: {list(rest.keys())!r}")
 
@@ -226,14 +228,16 @@ def get_embeddings(
     dtype=np.float64,
 ):
     if subsets is None:
-        subsets = "PWGTP > 0"
+        n_subsets = 1
     else:
         subsets = subsets.strip()
         if subsets.endswith(","):  # allow trailing comma
             subsets = subsets[:-1]
-    n_subsets = subsets.count(",") + 1
-    if n_subsets == 1:
-        subsets += ","  # make sure eval returns a matrix
+        n_subsets = subsets.count(",") + 1
+        if n_subsets == 1:
+            subsets += ","  # make sure eval returns a matrix
+
+        eval_args = {'engine': 'python'}  # :( https://github.com/pandas-dev/pandas/issues/25369
 
     if preprocessor is None:
         preprocessor = Preprocessor()  # a processor that only tracks skips
@@ -289,18 +293,19 @@ def get_embeddings(
 
                 # index into which lines are in which subsets,
                 # possibly working around gross pandas bug(?) for one-line dfs
-                if c.shape[0] == 1:
-                    which = pd.concat([c, c]).eval(subsets).astype(bool)[:, :1]
-                else:
-                    which = c.eval(subsets).astype(bool)
+                if subsets is not None:
+                    if c.shape[0] == 1:
+                        which = pd.concat([c, c]).eval(subsets, **eval_args).astype(bool)[:, :1]
+                    else:
+                        which = c.eval(subsets, **eval_args).astype(bool)
 
-                # remove lines not in any subset
-                keep = which.any(axis=0)
-                if not keep.all():
-                    c = c.loc[keep]
-                    which = which[:, keep]
-                    if not c.shape[0]:  # we subsetted away the entire chunk
-                        continue
+                    # remove lines not in any subset
+                    keep = which.any(axis=0)
+                    if not keep.all():
+                        c = c.loc[keep]
+                        which = which[:, keep]
+                        if not c.shape[0]:  # we subsetted away the entire chunk
+                            continue
 
                 # expand discrete variables, standardize reals, etc
                 if dummies.shape[0] < c.shape[0]:  # if chunksize not supported
@@ -318,8 +323,9 @@ def get_embeddings(
 
                 # figure out weights within each subset
                 wts = np.tile(c.PWGTP.astype(dtype), (n_subsets, 1))
-                for i, w in enumerate(which):
-                    wts[i, ~w] = 0
+                if subsets is not None:
+                    for i, w in enumerate(which):
+                        wts[i, ~w] = 0
 
                 # get each set of feature means
                 for f, inc, pieces in zip(featurizers, each_include, emb_pieces):
