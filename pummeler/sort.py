@@ -200,10 +200,11 @@ def sort_by_region(
         for k, count in not_in_region.most_common():
             print(k, count)
 
-    print("Merging files...")
-    dtypes = {k: pd.CategoricalDtype(v.index) for k, v in value_counts.items()}
-    for target_file, part_names in tqdm(file_parts.items()):
-        merge_chunks(part_names, target_file, format=format, dtypes=dtypes)
+    if not stats_only:
+        print("Merging files...")
+        dtypes = {k: pd.CategoricalDtype(v.index) for k, v in value_counts.items()}
+        for target_file, part_names in tqdm(file_parts.items()):
+            merge_chunks(part_names, target_file, format=format, dtypes=dtypes)
 
     total = sum(n_nonnan for n_nonnan, mean, mean_sq in real_info)
     real_means = 0
