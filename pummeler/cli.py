@@ -395,7 +395,7 @@ def do_featurize(args, parser):
         )
 
     stats = load_stats(os.path.join(args.dir, "stats"))
-    files = glob(os.path.join(args.dir, "feats_*.h5"))
+    files = glob(os.path.join(args.dir, "feats_*"))
     region_names = [os.path.basename(f)[6:-3] for f in files]
 
     if args.do_my_proc or args.do_my_additive:
