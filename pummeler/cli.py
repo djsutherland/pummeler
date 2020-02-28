@@ -21,7 +21,7 @@ from .featurize import (
 from .misc import get_state_embeddings, get_merged_embeddings
 from .reader import VERSIONS
 from .stats import load_stats, save_stats
-from .sort import sort_by_region
+from .sort import sort_by_region, get_puma_to_region
 
 
 def main():
@@ -46,13 +46,20 @@ def main():
     g.add_argument("--zipfile", "-z", help="The original ACS PUMS zip file.")
     g.add_argument("--csv-files", "-c", nargs="+", help="CSV files in ACS PUMS format.")
 
-    io.add_argument("out_dir", help="Directory for the sorted features.")
+    io.add_argument("out_dir", type=Path, help="Directory for the sorted features.")
     io.add_argument(
         "--format",
         choices=["hdf5", "h5", "parquet", "pq"],
         default="parquet",
         help="Format to sort into; default %(default)s.",
     )
+
+    io.add_argument(
+        "--housing-dir",
+        type=Path,
+        help="Output of sorting housing files, to add housing variables to output.",
+    )
+    io.add_argument("--housing-cache-size", type=int, default=8)
 
     io.add_argument(
         "--region-type",
@@ -332,11 +339,23 @@ def main():
 
 
 def do_sort(args, parser):
-    if not os.path.isdir(args.out_dir):
-        os.makedirs(args.out_dir)
+    args.out_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.housing_dir is None:
+        housing_source = None
+    else:
+        hs = load_stats(args.housing_dir / "stats")
+        get_name = get_puma_to_region(
+            hs["region_type"], hs["version_info"]["region_year"]
+        )
+
+        def housing_source(st, puma):
+            name = get_name((st, puma))
+            return next(iter(args.housing_dir.glob(f"feats_{name}.*")))
+
     stats = sort_by_region(
         args.zipfile or args.csv_files,
-        os.path.join(args.out_dir, "feats_{}"),
+        str(args.out_dir / "feats_{}"),
         voters_only=args.voters_only,
         stats_only=args.stats_only,
         adj_inc=True,
@@ -345,6 +364,8 @@ def do_sort(args, parser):
         region_type=args.region_type,
         format=args.format,
         add_extension=True,
+        housing_source=housing_source,
+        housing_cache_size=args.housing_cache_size,
     )
     save_stats(os.path.join(args.out_dir, "stats"), stats)
 
@@ -389,7 +410,7 @@ def do_featurize(args, parser):
             *a,
             skip_feats=args.skip_feats,
             skip_alloc_flags=args.skip_alloc_flags,
-            **kwargs
+            **kwargs,
         )
 
     rs = (

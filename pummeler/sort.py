@@ -10,7 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from .data import geocode_data
-from .reader import read_chunks, VERSIONS
+from .reader import read_chunks, VERSIONS, version_info_with_housing
 
 
 def get_puma_to_region(region_type, puma_year):
@@ -54,6 +54,8 @@ def sort_by_region(
     voters_only=True,
     adj_inc=True,
     adj_hsg=True,
+    housing_source=None,  # func from (state, puma) => filename
+    housing_cache_size=8,
     version="2006-10",
     chunksize=10 ** 5,
     n_to_sample=5000,
@@ -62,7 +64,10 @@ def sort_by_region(
     format="parquet",
     add_extension=False,
 ):
-    info = VERSIONS[version]
+    if housing_source:
+        info = version_info_with_housing(version)
+    else:
+        info = VERSIONS[version]
     all_cols = set(
         info["meta_cols"]
         + info["weight_cols"]
@@ -135,6 +140,8 @@ def sort_by_region(
                     voters_only=voters_only,
                     adj_inc=adj_inc,
                     adj_hsg=adj_hsg,
+                    housing_source=housing_source,
+                    housing_cache_size=housing_cache_size,
                     chunksize=chunksize,
                     version=version,
                 ):
@@ -245,6 +252,7 @@ def sort_by_region(
     stats["version"] = version
     stats["version_info"] = info
     stats["sample"] = pd.DataFrame([t for r, t in reservoir], columns=columns)
+    stats["region_type"] = region_type
     return stats
 
 
@@ -266,7 +274,7 @@ def merge_chunks(in_files, out_fn, format, dtypes):
         df = pd.concat([pd.read_parquet(fn).astype(dtypes) for fn in in_files])
         df.to_parquet(out_fn, row_group_size=65536)
     elif format == "hdf5":
-        df = _merge_dfs([pd.read_hdf(fn, "df").astype(dtypes) for fn in in_files])
+        df = pd.concat([pd.read_hdf(fn, "df").astype(dtypes) for fn in in_files])
         df.to_hdf(out_fn, "df", format="table", mode="w", complib="blosc", complevel=6)
     else:
         raise ValueError(f"unknown format {format!r}")

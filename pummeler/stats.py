@@ -73,7 +73,7 @@ def save_stats(fn, stats, format=None, add_suffix=True):
             stats["real_stds"].to_hdf(f, "real_stds")
             for k, v in six.iteritems(stats["value_counts"]):
                 v.to_hdf(f, "value_counts/{}".format(k))
-            for k in ["n_total", "wt_total", "version"]:
+            for k in ["n_total", "wt_total", "version", "region_type"]:
                 pd.Series([stats[k]]).to_hdf(f, k)
 
             v = json.dumps(stats.get("version_info", VERSIONS[stats["version"]]))
@@ -104,7 +104,7 @@ def load_stats(fn, format=None):
             stats["sample"] = f["sample"]
             stats["real_means"] = f["real_means"]
             stats["real_stds"] = f["real_stds"]
-            for k in ["n_total", "wt_total", "version"]:
+            for k in ["n_total", "wt_total", "version", "region_type"]:
                 stats[k] = f[k].iloc[0]
 
             if "version_info" in f:
