@@ -13,11 +13,47 @@ from .data import geocode_data
 from .reader import read_chunks, VERSIONS
 
 
+def get_puma_to_region(region_type, puma_year):
+    if region_type == "puma_county":
+        df = geocode_data(f"puma_region_{puma_year}").region
+
+        def puma_to_region(st_puma):
+            st, puma = st_puma
+            return df.loc[int(st), int(puma)]
+
+    elif region_type == "puma":
+        stab_to_st = geocode_data("state_to_stab").stab.to_dict()
+        for stab, st in list(stab_to_st.items()):
+            stab_to_st[f"{stab:02}"] = st
+
+        def puma_to_region(st_puma):
+            st, puma = st_puma
+            return f"{stab_to_st[st]}_{puma}"
+
+    elif region_type == "state":
+        stab_to_st = geocode_data("state_to_stab").stab.to_dict()
+        for stab, st in list(stab_to_st.items()):
+            stab_to_st[f"{stab:02}"] = st
+
+        def puma_to_region(st_puma):
+            st, puma = st_puma
+            return stab_to_st[st_puma[0]]
+
+    else:
+        raise ValueError(f"Bad region_type {region_type!r}")
+
+    return puma_to_region
+
+
+_ignore_cols = {"ADJINC", "ADJINC_orig", "ADJHSG", "ADJHSG_orig"}
+
+
 def sort_by_region(
     source,
     out_fmt,
     voters_only=True,
     adj_inc=True,
+    adj_hsg=True,
     version="2006-10",
     chunksize=10 ** 5,
     n_to_sample=5000,
@@ -36,30 +72,10 @@ def sort_by_region(
     )
     real_feats = info["real_feats"]
     discrete = info["discrete_feats"] + info["alloc_flags"]
+    wt_col = info["weight_cols"][0]
+    assert wt_col.isalpha()  # PWGTP or WGTP, not PWGT6 or whatever
 
-    if region_type == "puma_county":
-        key = f"puma_region_{info['region_year']}"
-        puma_to_region = geocode_data(key).region.to_dict().get
-    elif region_type == "puma":
-        stab_to_st = geocode_data("state_to_stab").stab.to_dict()
-        for stab, st in list(stab_to_st.items()):
-            stab_to_st[f"{stab:02}"] = st
-
-        def puma_to_region(st_puma):
-            st, puma = st_puma
-            return f"{stab_to_st[st]}_{puma}"
-
-    elif region_type == "state":
-        stab_to_st = geocode_data("state_to_stab").stab.to_dict()
-        for stab, st in list(stab_to_st.items()):
-            stab_to_st[f"{stab:02}"] = st
-
-        def puma_to_region(st_puma):
-            st, puma = st_puma
-            return stab_to_st[st]
-
-    else:
-        raise ValueError(f"Bad region_type {region_type!r}")
+    puma_to_region = get_puma_to_region(region_type, info["region_year"])
 
     if format.lower() in {"hdf", "hdf5", "h5"}:
         format = "hdf5"
@@ -118,6 +134,7 @@ def sort_by_region(
                     in_f,
                     voters_only=voters_only,
                     adj_inc=adj_inc,
+                    adj_hsg=adj_hsg,
                     chunksize=chunksize,
                     version=version,
                 ):
@@ -126,7 +143,7 @@ def sort_by_region(
                             columns = list(chunk.columns)
 
                             cols = set(chunk.columns)
-                            extra = cols - all_cols - {"ADJINC", "ADJINC_orig"}
+                            extra = cols - all_cols - _ignore_cols
                             if extra:
                                 msg = (
                                     "Saw unknown columns; did you pass the "
@@ -145,7 +162,7 @@ def sort_by_region(
                         checked_cols = True
 
                     n_total += chunk.shape[0]
-                    wt_total += chunk.PWGTP.sum()
+                    wt_total += chunk[wt_col].sum()
 
                     # components of mean / std for real-valued features
                     reals = chunk[real_feats]
@@ -167,7 +184,7 @@ def sort_by_region(
 
                     # manage reservoir sample
                     rs = np.asarray(
-                        np.random.uniform(size=chunk.shape[0]) ** (1 / chunk.PWGTP)
+                        np.random.uniform(size=chunk.shape[0]) ** (1 / chunk[wt_col])
                     )
                     for r_tup in zip(rs, chunk.itertuples(index=False)):
                         # TODO: could speed this up if it's slow, probably

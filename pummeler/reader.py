@@ -10,7 +10,9 @@ weirds = """
 """.split()
 
 
-def read_chunks(fname, version, chunksize=10 ** 5, voters_only=False, adj_inc=None):
+def read_chunks(
+    fname, version, chunksize=10 ** 5, voters_only=False, adj_inc=None, adj_hsg=None
+):
     info = VERSIONS[version]
     dtypes = {}
     for k in info["meta_cols"] + info["discrete_feats"] + info["alloc_flags"]:
@@ -64,13 +66,28 @@ def read_chunks(fname, version, chunksize=10 ** 5, voters_only=False, adj_inc=No
                     "and adj_inc is None; pass either True or "
                     "False explicitly"
                 )
-
         if adj_inc:
             adj = chunk.ADJINC / 1e6
             for k in info["to_adjinc"]:
                 chunk[k] *= adj
-            chunk["ADJINC_orig"] = chunk.ADJINC
-            del chunk["ADJINC"]
+            chunk.rename(columns={"ADJINC": "ADJINC_orig"}, inplace=True)
+
+        if adj_hsg is None:
+            if "ADJHSG" in chunk:
+                adj_hsg = True
+            elif "ADJHSG_orig" in chunk:
+                adj_hsg = False
+            else:
+                raise ValueError(
+                    "Unclear whether income has been adjusted, "
+                    "and adj_hsg is None; pass either True or "
+                    "False explicitly"
+                )
+        if adj_hsg:
+            adj = chunk.ADJHSG / 1e6
+            for k in info["to_adjhsg"]:
+                chunk[k] *= adj
+            chunk.rename(columns={"ADJHSG": "ADJHSG_orig"}, inplace=True)
 
         yield chunk
 
@@ -224,3 +241,47 @@ v["drop_feats"] = sorted(v.get("drop_feats", []) + "REGION DIVISION".split())
 VERSIONS["2014-18"] = v = VERSIONS["2013-17"].copy()
 
 VERSIONS["2015"] = VERSIONS["2013-17"].copy()
+
+
+VERSIONS["housing_2014-18"] = v = {
+    "weight_cols": ["WGTP"] + [f"WGTP{i}" for i in range(1, 81)],
+    "meta_cols": _s("RT SERIALNO PUMA ST"),
+    "alloc_flags": _s(
+        """
+        FACCESSP FACRP FAGSP FBATHP FBDSP FBLDP FBROADBNDP FCOMPOTHXP
+        FBUSP FCONP FDIALUPP FELEP FFINCP FFSP FFULP FGASP FGRNTP
+        FHFLP FHINCP FHISPEEDP FHOTWATP FINSP FKITP FLAPTOPP FMHP FMRGIP
+        FMRGP FMRGTP FMRGXP FMVP FOTHSVCEXP FPLMP FPLMPRP FREFRP FRMSP
+        FRNTMP FRNTP FRWATP FRWATPRP FSATELLITEP FSINKP FSMARTPHONP
+        FSMOCP FSMP FSMXHP FSMXSP FSTOVP FTABLETP FTAXP FTELP FTENP
+        FTOILP FVACSP FVALP FVEHP FWATP FYBLP
+        """
+    ),
+    "discrete_feats": _s(
+        """
+            NP TYPE
+            ACCESS ACR AGS BATH BDSP BLD BUS BROADBND COMPOTHX DIALUP
+            FS HFL HISPEED HOTWAT LAPTOP
+            MRGI MRGT MRGX OTHSVCEX REFR RMSP RNTM RWAT RWATPR
+            SATELLITE SINK SMARTPHONE STOV TABLET TEL TEN TOIL VACS
+            VEH YBL FES
+            FPARC
+            HHL HHT HUGCL HUPAC HUPAOC HUPARC KIT LNGI MULTG
+            MV NOC NPF NPP NR NRC PARTNER PLM PLMPRP PSF R18 R60 R65
+            RESMODE SMX SRNT SSMC SVAL WIF WKEXREL WORKSTAT
+            ELEFP FULFP GASFP WATFP
+        """
+    ),
+    "real_feats": _s("VALP GRPIP OCPIP"),
+    "to_adjhsg": _s(
+        """
+            CONP ELEP FULP GASP INSP MHP MRGP RNTP SMP WATP
+            GRNTP SMOCP TAXAMT
+        """
+    ),
+    "to_adjinc": _s("FINCP HINCP"),
+    "drop_feats": _s("DIVISION REGION"),
+    "region_year": "10",
+}
+v["real_feats"] = sorted(set(v["real_feats"]) | set(v["to_adjhsg"]))
+v["real_feats"] = sorted(set(v["real_feats"]) | set(v["to_adjinc"]))
