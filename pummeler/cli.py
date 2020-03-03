@@ -394,9 +394,10 @@ def do_featurize(args, parser):
             )
         )
 
-    stats = load_stats(os.path.join(args.dir, "stats"))
-    files = glob(os.path.join(args.dir, "feats_*"))
-    region_names = [os.path.basename(f)[6:-3] for f in files]
+    dirname = Path(args.dir)
+    stats = load_stats(dirname / 'stats')
+    files = glob(dirname.glob('feats_*'))
+    region_names = [f.stem[6:] for f in files]
 
     if args.do_my_proc or args.do_my_additive:
         from .my_proc import MyPreprocessor
