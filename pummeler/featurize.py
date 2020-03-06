@@ -100,8 +100,11 @@ def _get_dummies(col, vc, with_nan, out=None, dtype=np.float64, ordered=None):
     else:
         encodings = np.zeros((n_codes, n_codes))
         encodings[np.tril_indices_from(encodings, 0)] = 1
-        encodings[-1, :-1] = 0.5
-        encodings[-1, -1] = 1
+        if with_nan:
+            # TODO: allow choosing nan behavior somewhere
+            encodings[-1] = 0
+            # encodings[-1, :-1] = 0.5
+            # encodings[-1, -1] = 1
 
     if out is None:
         out = np.empty((col.shape[0], n_codes), dtype=dtype)
