@@ -266,10 +266,8 @@ def write_chunk(fn, df, format):
 
 
 def merge_chunks(in_files, out_fn, format, dtypes):
-    if len(in_files) == 1:
-        Path(in_files[0]).rename(out_fn)
-        return
-
+    # need to ensure we cast dtypes here too, so categories are in right order,
+    # even if there's only one file
     if format == "parquet":
         df = pd.concat([pd.read_parquet(fn).astype(dtypes) for fn in in_files])
         df.to_parquet(out_fn, row_group_size=65536)
