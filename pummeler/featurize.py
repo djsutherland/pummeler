@@ -136,7 +136,7 @@ def _keeps(identities):
     killing perfect colinearity in dummy features.
     """
     _, ids = np.unique(identities, return_inverse=True)
-    starts = np.diff(ids).nonzero()[0]
+    starts = np.r_[0, np.diff(ids).nonzero()[0] + 1]
     ends = np.r_[starts[1:], len(identities)]
     keeps = np.ones(len(identities), dtype=bool)
     keeps[starts[ends - starts > 1]] = False
