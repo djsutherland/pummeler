@@ -265,14 +265,48 @@ def write_chunk(fn, df, format):
         raise ValueError(f"unknown format {format!r}")
 
 
+def astype_catorder(df, dtypes, copy=True, errors="raise"):
+    "Version of DataFrame.astype that also enforces categories are the same order."
+    for col_name in dtypes.keys():
+        if col_name not in df:
+            raise KeyError(
+                "Only a column name can be used for the "
+                "key in a dtype mappings argument."
+            )
+
+    results = []
+    for col_name, col in df.items():
+        if col_name in dtypes:
+            dt = dtypes[col_name]
+            new = col.astype(dtype=dt, copy=copy, errors=errors)
+            if isinstance(dt, pd.CategoricalDtype) and not np.all(
+                new.cat.categories == dt.categories
+            ):
+                new = new.cat.reorder_categories(dt.categories)
+            results.append(new)
+        else:
+            results.append(col.copy() if copy else col)
+
+    result = pd.concat(results, axis=1, copy=False)
+    result.columns = df.columns
+    return result
+
+
 def merge_chunks(in_files, out_fn, format, dtypes):
-    # need to ensure we cast dtypes here too, so categories are in right order,
-    # even if there's only one file
+    # we want to make sure the categories attributes all agree, even in order.
+    # this means we (a) can't just copy files even if there's only one,
+    # and (b) have to use astype_catorder to make sure they're right
+    # since astype won't reorder unordered dtypes
+
     if format == "parquet":
-        df = pd.concat([pd.read_parquet(fn).astype(dtypes) for fn in in_files])
+        df = pd.concat(
+            [astype_catorder(pd.read_parquet(fn), dtypes) for fn in in_files]
+        )
         df.to_parquet(out_fn, row_group_size=65536)
     elif format == "hdf5":
-        df = pd.concat([pd.read_hdf(fn, "df").astype(dtypes) for fn in in_files])
+        df = pd.concat(
+            [astype_catorder(pd.read_hdf(fn, "df"), dtypes) for fn in in_files]
+        )
         df.to_hdf(out_fn, "df", format="table", mode="w", complib="blosc", complevel=6)
     else:
         raise ValueError(f"unknown format {format!r}")
