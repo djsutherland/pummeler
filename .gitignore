@@ -1,5 +1,8 @@
 /out*
 /sorted_*
+/state_*
+/puma_*
+/*.ipynb
 
 
 # Byte-compiled / optimized / DLL files
