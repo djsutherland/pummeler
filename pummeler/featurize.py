@@ -80,17 +80,32 @@ def get_dummies(
         return out
 
 
-def _get_dummies(col, vc, with_nan, out=None, dtype=np.float64):
-    c = pd.Categorical(col, categories=vc.index).codes
+def _get_dummies(col, vc, with_nan, out=None, dtype=np.float64, ordered=None):
+    try:
+        c = col.cat.codes
+    except AttributeError:
+        c = pd.Categorical(col, categories=sorted(vc.index.values)).codes
+    else:
+        assert list(col.cat.categories) == sorted(vc.index.values)
+        if ordered is None:
+            ordered = col.dtype.ordered
+
     n_codes = len(vc)
     if with_nan:
-        c = c.copy()
-        c[c == -1] = n_codes
         n_codes += 1
+
+    # TODO: cache this per n_codes size?
+    if not ordered:
+        encodings = np.eye(n_codes)
+    else:
+        encodings = np.zeros((n_codes, n_codes))
+        encodings[np.tril_indices_from(encodings, 0)] = 1
+        encodings[-1, :-1] = 0.5
+        encodings[-1, -1] = 1
 
     if out is None:
         out = np.empty((col.shape[0], n_codes), dtype=dtype)
-    np.eye(n_codes).take(c, axis=0, out=out)
+    encodings.take(c, axis=0, out=out)
     return out
 
 
@@ -114,7 +129,7 @@ def _feat_names_ids(stats, skip_feats=None):
     for k, vc in stats["value_counts"].items():
         if k in skip_feats:
             continue
-        for v in vc.index:
+        for v in sorted(vc.index):
             names.append(f"{k}_{v}")
             ids.append(k)
         if _needs_nan(k, stats):
