@@ -230,12 +230,12 @@ def sort_by_region(
         for target_file, part_names in tqdm(file_parts.items()):
             merge_chunks(part_names, target_file, format=format, dtypes=dtypes)
 
-    total = sum(n_nonnan for n_nonnan, mean, mean_sq in real_info)
+    real_totals = sum(n_nonnan for n_nonnan, mean, mean_sq in real_info)
     real_means = 0
     real_mean_sqs = 0
     for n_nonnan, mean, mean_sq in real_info:
-        real_means += n_nonnan / total * mean
-        real_mean_sqs += n_nonnan / total * mean_sq
+        real_means += n_nonnan / real_totals * mean
+        real_mean_sqs += n_nonnan / real_totals * mean_sq
 
     real_stds = (
         (real_mean_sqs - real_means.astype(np.float128) ** 2)
@@ -246,6 +246,7 @@ def sort_by_region(
     stats = {}
     stats["real_means"] = real_means
     stats["real_stds"] = real_stds
+    stats["real_counts"] = real_totals
     stats["value_counts"] = value_counts
     stats["n_total"] = n_total
     stats["wt_total"] = wt_total
