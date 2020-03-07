@@ -38,6 +38,8 @@ _naics_cat = {
 
 
 def naics_cat(s):
+    if pd.isnull(s):
+        return pd.NA
     return _naics_cat[str(s)[:2]]
 
 
@@ -74,6 +76,8 @@ occ_codes = np.array(occ_codes)
 
 
 def occ_cat(x):
+    if pd.isnull(x):
+        return pd.NA
     return occ_names[occ_codes.searchsorted(float(x), side="right") - 1]
 
 
