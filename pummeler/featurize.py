@@ -260,7 +260,10 @@ def get_embeddings(
     preprocessor.handle_stats(stats)
 
     assert len(featurizers) >= 1
-    featurizers = [feat_class(stats) for feat_class in featurizers]
+    feat_classes = featurizers
+    if len(feat_classes) > 10:
+        feat_classes = tqdm(feat_classes, unit="feat")
+    featurizers = [feat_class(stats) for feat_class in feat_classes]
 
     # index of which featurizers need which set of features...
     always_skip = featurizers[0].skip_feats.intersection(
@@ -543,13 +546,13 @@ class RFFFeaturizer(Featurizer):
 
         if freqs is None:
             if bandwidth is None:
-                print(
-                    "Picking bandwidth by median heuristic...", file=sys.stderr, end=""
-                )
+                # print(
+                #     "Picking bandwidth by median heuristic...", file=sys.stderr, end=""
+                # )
                 self.bandwidth = bandwidth = pick_gaussian_bandwidth(
                     stats, skip_feats=self.skip_feats
                 )
-                print("picked {}".format(bandwidth), file=sys.stderr)
+                # print("picked {}".format(bandwidth), file=sys.stderr)
             freqs = pick_rff_freqs(
                 n_freqs,
                 bandwidth,
