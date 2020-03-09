@@ -69,8 +69,8 @@ def save_stats(fn, stats, format=None, add_suffix=True):
     elif format == "hdf5":
         with pd.HDFStore(fn, "w") as f:
             stats["sample"].to_hdf(f, "sample", format="table")
-            stats["real_means"].to_hdf(f, "real_means")
-            stats["real_stds"].to_hdf(f, "real_stds")
+            for k in ["real_means", "real_stds", "real_counts"]:
+                stats[k].to_hdf(f, k)
             for k, v in six.iteritems(stats["value_counts"]):
                 v.to_hdf(f, "value_counts/{}".format(k))
             for k in ["n_total", "wt_total", "version", "region_type"]:
@@ -91,6 +91,7 @@ def load_stats(fn, format=None):
 
         stats["real_means"] = pd.Series(stats["real_means"], stats["real_names"])
         stats["real_stds"] = pd.Series(stats["real_stds"], stats["real_names"])
+        stats["real_counts"] = pd.Series(stats["real_counts"], stats["real_names"])
         del stats["real_names"]
 
         stats["sample"] = pd.DataFrame(
@@ -101,9 +102,8 @@ def load_stats(fn, format=None):
     elif format == "hdf5":
         stats = {}
         with pd.HDFStore(fn, "r") as f:
-            stats["sample"] = f["sample"]
-            stats["real_means"] = f["real_means"]
-            stats["real_stds"] = f["real_stds"]
+            for k in ["sample", "real_means", "real_stds", "real_counts"]:
+                stats[k] = f[k]
             for k in ["n_total", "wt_total", "version", "region_type"]:
                 stats[k] = f[k].iloc[0]
 
