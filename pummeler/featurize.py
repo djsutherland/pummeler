@@ -265,7 +265,7 @@ def get_embeddings(
     assert len(featurizers) >= 1
     feat_classes = featurizers
     if len(feat_classes) > 10:
-        feat_classes = tqdm(feat_classes, unit="feat")
+        feat_classes = tqdm(feat_classes, desc="Initializing featurizers", unit="feat")
     featurizers = [feat_class(stats) for feat_class in feat_classes]
 
     # index of which featurizers need which set of features...
