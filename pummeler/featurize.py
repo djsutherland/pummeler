@@ -210,20 +210,14 @@ class Featurizer:
         if rest:
             warnings.warn(f"Unused arguments: {list(rest.keys())!r}")
 
-        info = self.stats["version_info"]
         skip_feats = set([] if skip_feats is None else skip_feats)
         if only_feats is not None:
             only_feats = set(only_feats)
             assert only_feats.isdisjoint(skip_feats)
-            all_feats = (
-                set(info["real_feats"])
-                | set(info["discrete_feats"])
-                | set(info["alloc_flags"])
-            )
-            skip_feats = all_feats - only_feats
+            skip_feats = _all_feats(self.stats) - only_feats
         else:
             if skip_alloc_flags:
-                skip_feats.update(info["alloc_flags"])
+                skip_feats.update(self.stats["version_info"]["alloc_flags"])
         return skip_feats
 
     out_size = None  # subclasses should set
