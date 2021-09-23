@@ -141,11 +141,14 @@ def _feat_names_ids(stats, skip_feats=None):
     return names, ids
 
 
-def _all_feats(stats):
+def _all_feats(stats, inc_meta=False, inc_weights=False):
     info = stats["version_info"]
-    return (
-        set(info["real_feats"]) | set(info["discrete_feats"]) | set(info["alloc_flags"])
-    )
+    res = set(info["real_feats"]) | set(info["discrete_feats"]) | set(info["alloc_flags"])
+    if inc_meta:
+        res.update(info['meta_cols'])
+    if inc_weights:
+        res.update(info['weight_cols'])
+    return res
 
 
 def _keeps(identities):
@@ -750,7 +753,7 @@ class Preprocessor:
 
     @property
     def need_to_load(self):
-        return _all_feats(self.stats) - self.skip
+        return _all_feats(self.stats, inc_meta=True, inc_weights=True) - self.skip
 
     def __call__(self, df):
         pass
